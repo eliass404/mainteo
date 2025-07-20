@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AddMachineModal } from "./AddMachineModal";
+import { AddTechnicianModal } from "./AddTechnicianModal";
 
 const mockMachines = [
   {
@@ -204,10 +205,7 @@ export const AdminDashboard = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Techniciens</CardTitle>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau Technicien
-            </Button>
+            <AddTechnicianModal />
           </div>
         </CardHeader>
         <CardContent>

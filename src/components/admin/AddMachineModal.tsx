@@ -30,8 +30,7 @@ export const AddMachineModal = () => {
     type: "",
     location: "",
     serialNumber: "",
-    department: "",
-    assignedTech: ""
+    department: ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,8 +43,7 @@ export const AddMachineModal = () => {
       type: "",
       location: "",
       serialNumber: "",
-      department: "",
-      assignedTech: ""
+      department: ""
     });
   };
 
@@ -123,16 +121,6 @@ export const AddMachineModal = () => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="assignedTech">Technicien assigné</Label>
-            <Input
-              id="assignedTech"
-              value={formData.assignedTech}
-              onChange={(e) => setFormData(prev => ({...prev, assignedTech: e.target.value}))}
-              placeholder="Ex: Jean Dupont"
-            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
