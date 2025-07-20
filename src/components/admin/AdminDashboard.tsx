@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { AddMachineModal } from "./AddMachineModal";
 import { AddTechnicianModal } from "./AddTechnicianModal";
+import { AddUserModal } from "./AddUserModal";
 
 const mockMachines = [
   {
@@ -143,6 +144,21 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* User Management */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Gestion des Utilisateurs</CardTitle>
+            <AddUserModal />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            Créez des comptes administrateur et technicien avec des mots de passe sécurisés.
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Machines Management */}
       <Card>

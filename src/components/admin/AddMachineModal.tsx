@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, FileText, X } from "lucide-react";
 import { Plus } from "lucide-react";
 
 const departments = [
@@ -32,10 +33,29 @@ export const AddMachineModal = () => {
     serialNumber: "",
     department: ""
   });
+  
+  const [files, setFiles] = useState({
+    notice: null as File | null,
+    manual: null as File | null
+  });
+
+  
+  const handleFileChange = (type: 'notice' | 'manual') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setFiles(prev => ({ ...prev, [type]: file }));
+    } else {
+      alert('Veuillez sélectionner un fichier PDF');
+    }
+  };
+
+  const removeFile = (type: 'notice' | 'manual') => {
+    setFiles(prev => ({ ...prev, [type]: null }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Nouvelle machine:", formData);
+    console.log("Nouvelle machine:", formData, "Fichiers:", files);
     setOpen(false);
     // Reset form
     setFormData({
@@ -44,6 +64,10 @@ export const AddMachineModal = () => {
       location: "",
       serialNumber: "",
       department: ""
+    });
+    setFiles({
+      notice: null,
+      manual: null
     });
   };
 
@@ -121,6 +145,74 @@ export const AddMachineModal = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Notice technique (PDF)</Label>
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
+                {files.notice ? (
+                  <div className="flex items-center justify-between p-2 bg-muted rounded">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span className="text-sm">{files.notice.name}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeFile('notice')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center cursor-pointer">
+                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">Cliquer pour sélectionner la notice PDF</span>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange('notice')}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Manuel d'utilisation (PDF)</Label>
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
+                {files.manual ? (
+                  <div className="flex items-center justify-between p-2 bg-muted rounded">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span className="text-sm">{files.manual.name}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeFile('manual')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center cursor-pointer">
+                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">Cliquer pour sélectionner le manuel PDF</span>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange('manual')}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

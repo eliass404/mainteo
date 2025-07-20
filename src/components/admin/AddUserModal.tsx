@@ -1,0 +1,191 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Copy, RefreshCw, Plus, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
+
+const departments = [
+  "Production",
+  "Maintenance", 
+  "Qualité",
+  "Logistique",
+  "R&D"
+];
+
+export const AddUserModal = () => {
+  const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+    department: "",
+    password: ""
+  });
+
+  const generatePassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setFormData(prev => ({ ...prev, password }));
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(formData.password);
+    toast.success("Mot de passe copié dans le presse-papiers");
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Nouvel utilisateur:", formData);
+    toast.success(`Utilisateur ${formData.role} créé avec succès`);
+    setOpen(false);
+    // Reset form
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      role: "",
+      department: "",
+      password: ""
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Nouvel Utilisateur
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom complet</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))}
+                placeholder="Ex: Jean Dupont"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
+                placeholder="jean.dupont@entreprise.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone">Téléphone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({...prev, phone: e.target.value}))}
+                placeholder="Ex: +33 1 23 45 67 89"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Rôle</Label>
+              <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({...prev, role: value}))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner le rôle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrateur</SelectItem>
+                  <SelectItem value="technician">Technicien</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="department">Département</Label>
+            <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({...prev, department: value}))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner le département" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Mot de passe</Label>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex gap-2 mb-3">
+                  <Button type="button" onClick={generatePassword} variant="outline" size="sm">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Générer
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={copyPassword} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={!formData.password}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copier
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
+                    placeholder="Mot de passe généré automatiquement"
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="submit">
+              Créer l'utilisateur
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};

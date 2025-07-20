@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Cog, 
@@ -16,7 +17,8 @@ import {
   User as UserIcon,
   Calendar,
   MapPin,
-  Wrench
+  Wrench,
+  FileCheck
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,7 +31,21 @@ const mockMachines = [
     status: "operational",
     description: "Presse hydraulique 500T pour emboutissage",
     lastMaintenance: "2024-01-15",
-    nextMaintenance: "2024-02-15"
+    nextMaintenance: "2024-02-15",
+    hasManual: true,
+    hasNotice: true
+  },
+  {
+    id: "M002",
+    name: "Compresseur B",
+    type: "Compresseur",
+    location: "Atelier 2",
+    status: "maintenance",
+    description: "Compresseur d'air 50L",
+    lastMaintenance: "2024-01-10",
+    nextMaintenance: "2024-02-10",
+    hasManual: true,
+    hasNotice: false
   },
   {
     id: "M003",
@@ -39,31 +55,17 @@ const mockMachines = [
     status: "alert",
     description: "Convoyeur à bande 50m de long",
     lastMaintenance: "2024-01-05",
-    nextMaintenance: "2024-01-20"
+    nextMaintenance: "2024-01-20",
+    hasManual: false,
+    hasNotice: true
   }
 ];
 
-const mockChatHistory = [
-  {
-    type: "user",
-    message: "La presse hydraulique fait un bruit anormal lors du cycle de montée",
-    timestamp: "10:30"
-  },
-  {
-    type: "bot",
-    message: "D'après les spécifications techniques de votre presse hydraulique 500T, un bruit anormal pendant la montée peut indiquer plusieurs problèmes possibles :\n\n1. **Niveau d'huile hydraulique** : Vérifiez le niveau dans le réservoir\n2. **Filtre hydraulique** : Peut être encrassé\n3. **Pompe hydraulique** : Usure possible des composants\n\nQue vous recommandez-vous de vérifier en premier le niveau d'huile hydraulique ?",
-    timestamp: "10:31"
-  }
-];
-
-interface TechnicianDashboardProps {
-  username: string;
-}
-
-export const TechnicianDashboard = ({ username }: TechnicianDashboardProps) => {
-  const [selectedMachine, setSelectedMachine] = useState(mockMachines[0]);
-  const [chatMessage, setChatMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState(mockChatHistory);
+export const TechnicianDashboard = () => {
+  const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isAiReady, setIsAiReady] = useState(false);
   const [interventionReport, setInterventionReport] = useState({
     description: "",
     actions: "",
@@ -72,26 +74,48 @@ export const TechnicianDashboard = ({ username }: TechnicianDashboardProps) => {
     status: "en-cours"
   });
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
+  const handleMachineSelect = async (machineId: string) => {
+    setSelectedMachine(machineId);
+    setIsAiReady(false);
+    setChatMessages([]);
     
-    const newMessage = {
-      type: "user" as const,
-      message: chatMessage,
-      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    setChatHistory([...chatHistory, newMessage]);
-    setChatMessage("");
-    
-    // Simulate AI response
+    const machine = mockMachines.find(m => m.id === machineId);
+    if (machine) {
+      // Simuler le chargement des documents par l'IA
+      setChatMessages([{
+        role: 'assistant',
+        content: `🔄 Analyse en cours des documents de la machine ${machine.name}...`
+      }]);
+      
+      // Simuler le temps de traitement
+      setTimeout(() => {
+        setIsAiReady(true);
+        const docs = [];
+        if (machine.hasManual) docs.push('le manuel d\'utilisation');
+        if (machine.hasNotice) docs.push('la notice technique');
+        
+        setChatMessages([{
+          role: 'assistant',
+          content: `✅ J'ai analysé ${docs.join(' et ')} de la machine ${machine.name}. Je suis maintenant prêt à répondre à vos questions sur cette machine. Comment puis-je vous aider ?`
+        }]);
+      }, 2000);
+    }
+  };
+
+  const sendMessage = () => {
+    if (!inputMessage.trim() || !isAiReady) return;
+
+    const userMessage = { role: 'user' as const, content: inputMessage };
+    setChatMessages(prev => [...prev, userMessage]);
+    setInputMessage("");
+
+    // Simuler une réponse de l'IA
     setTimeout(() => {
-      const botResponse = {
-        type: "bot" as const,
-        message: "Je vous aide à diagnostiquer ce problème. D'après les données techniques de cette machine, voici mes recommandations...",
-        timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: `D'après l'analyse des documents techniques de cette machine, voici ma réponse : ${inputMessage}. Les procédures recommandées sont détaillées dans le manuel d'utilisation.`
       };
-      setChatHistory(prev => [...prev, botResponse]);
+      setChatMessages(prev => [...prev, assistantMessage]);
     }, 1000);
   };
 
@@ -99,6 +123,8 @@ export const TechnicianDashboard = ({ username }: TechnicianDashboardProps) => {
     switch (status) {
       case 'operational':
         return <Badge className="bg-success text-success-foreground">Opérationnel</Badge>;
+      case 'maintenance':
+        return <Badge variant="secondary">Maintenance</Badge>;
       case 'alert':
         return <Badge variant="destructive">Alerte</Badge>;
       default:
@@ -106,169 +132,211 @@ export const TechnicianDashboard = ({ username }: TechnicianDashboardProps) => {
     }
   };
 
+  const selectedMachineData = mockMachines.find(m => m.id === selectedMachine);
+
   return (
     <div className="p-6 space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-primary rounded-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Bonjour {username} !</h2>
-        <p className="text-blue-100">Vous avez {mockMachines.length} machines assignées aujourd'hui</p>
+        <h2 className="text-2xl font-bold mb-2">Espace Technicien</h2>
+        <p className="text-blue-100">Sélectionnez une machine pour commencer l'assistance IA</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Machines */}
+        {/* Machine Selection */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Cog className="w-5 h-5" />
-              Mes Machines
+              Mes Machines Assignées
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockMachines.map((machine) => (
-              <div 
-                key={machine.id}
-                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                  selectedMachine.id === machine.id 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-border hover:border-primary/50'
-                }`}
-                onClick={() => setSelectedMachine(machine)}
-              >
+            <div className="space-y-2">
+              <Label>Sélectionner une machine</Label>
+              <Select value={selectedMachine || ""} onValueChange={handleMachineSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une machine" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockMachines.map((machine) => (
+                    <SelectItem key={machine.id} value={machine.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{machine.id} - {machine.name}</span>
+                        <div className="flex gap-1">
+                          {machine.hasManual && (
+                            <span className="text-xs bg-primary/10 text-primary px-1 rounded">Manuel</span>
+                          )}
+                          {machine.hasNotice && (
+                            <span className="text-xs bg-accent/10 text-accent-foreground px-1 rounded">Notice</span>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedMachineData && (
+              <div className="p-4 rounded-lg border bg-muted/20">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-sm">{machine.name}</h3>
-                  {getStatusBadge(machine.status)}
+                  <h3 className="font-semibold text-sm">{selectedMachineData.name}</h3>
+                  {getStatusBadge(selectedMachineData.status)}
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-3 h-3" />
-                    {machine.location}
+                    {selectedMachineData.location}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-3 h-3" />
-                    Prochaine: {machine.nextMaintenance}
+                    Prochaine: {selectedMachineData.nextMaintenance}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="w-3 h-3" />
+                    {selectedMachineData.hasManual && selectedMachineData.hasNotice 
+                      ? "Manuel + Notice disponibles"
+                      : selectedMachineData.hasManual 
+                        ? "Manuel disponible" 
+                        : "Notice disponible"}
                   </div>
                 </div>
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
 
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wrench className="w-5 h-5" />
-                {selectedMachine.name}
-              </CardTitle>
-              <p className="text-muted-foreground">{selectedMachine.description}</p>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="chat" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="chat" className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    Assistant IA
-                  </TabsTrigger>
-                  <TabsTrigger value="rapport" className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Rapport d'intervention
-                  </TabsTrigger>
-                </TabsList>
+          {selectedMachine ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5" />
+                  {selectedMachineData?.name}
+                </CardTitle>
+                <p className="text-muted-foreground">{selectedMachineData?.description}</p>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="chat" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="chat" className="flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      Assistant IA
+                    </TabsTrigger>
+                    <TabsTrigger value="rapport" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Rapport d'intervention
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="chat" className="space-y-4">
-                  <div className="border rounded-lg h-96 overflow-y-auto p-4 space-y-4 bg-muted/20">
-                    {chatHistory.map((msg, index) => (
-                      <div key={index} className={`flex gap-3 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] ${msg.type === 'user' ? 'order-2' : ''}`}>
-                          <div className={`flex items-center gap-2 mb-1 ${msg.type === 'user' ? 'justify-end' : ''}`}>
-                            <span className="text-xs text-muted-foreground">{msg.timestamp}</span>
-                            {msg.type === 'user' ? (
-                              <UserIcon className="w-4 h-4" />
-                            ) : (
-                              <Bot className="w-4 h-4 text-primary" />
-                            )}
-                          </div>
-                          <div className={`p-3 rounded-lg whitespace-pre-wrap ${
-                            msg.type === 'user' 
-                              ? 'bg-primary text-primary-foreground ml-auto' 
-                              : 'bg-white border'
-                          }`}>
-                            {msg.message}
+                  <TabsContent value="chat" className="space-y-4">
+                    <div className="border rounded-lg h-96 overflow-y-auto p-4 space-y-4 bg-muted/20">
+                      {chatMessages.map((msg, index) => (
+                        <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-2' : ''}`}>
+                            <div className={`flex items-center gap-2 mb-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                              {msg.role === 'user' ? (
+                                <UserIcon className="w-4 h-4" />
+                              ) : (
+                                <Bot className="w-4 h-4 text-primary" />
+                              )}
+                            </div>
+                            <div className={`p-3 rounded-lg whitespace-pre-wrap ${
+                              msg.role === 'user' 
+                                ? 'bg-primary text-primary-foreground ml-auto' 
+                                : 'bg-white border'
+                            }`}>
+                              {msg.content}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Décrivez le problème ou posez une question..."
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    />
-                    <Button onClick={handleSendMessage} disabled={!chatMessage.trim()}>
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TabsContent>
+                      ))}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={isAiReady ? "Décrivez le problème ou posez une question..." : "Veuillez attendre que l'IA analyse les documents..."}
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                        disabled={!isAiReady}
+                      />
+                      <Button 
+                        onClick={sendMessage} 
+                        disabled={!isAiReady || !inputMessage.trim()}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TabsContent>
 
-                <TabsContent value="rapport" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Description du problème</Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Décrivez le problème rencontré..."
-                        value={interventionReport.description}
-                        onChange={(e) => setInterventionReport({...interventionReport, description: e.target.value})}
-                      />
+                  <TabsContent value="rapport" className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Description du problème</Label>
+                        <Textarea
+                          id="description"
+                          placeholder="Décrivez le problème rencontré..."
+                          value={interventionReport.description}
+                          onChange={(e) => setInterventionReport({...interventionReport, description: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="actions">Actions réalisées</Label>
+                        <Textarea
+                          id="actions"
+                          placeholder="Décrivez les actions effectuées..."
+                          value={interventionReport.actions}
+                          onChange={(e) => setInterventionReport({...interventionReport, actions: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="parts">Pièces utilisées</Label>
+                        <Input
+                          id="parts"
+                          placeholder="Ex: Filtre hydraulique, Joint torique..."
+                          value={interventionReport.partsUsed}
+                          onChange={(e) => setInterventionReport({...interventionReport, partsUsed: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="time">Temps passé (heures)</Label>
+                        <Input
+                          id="time"
+                          type="number"
+                          placeholder="2.5"
+                          value={interventionReport.timeSpent}
+                          onChange={(e) => setInterventionReport({...interventionReport, timeSpent: e.target.value})}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="actions">Actions réalisées</Label>
-                      <Textarea
-                        id="actions"
-                        placeholder="Décrivez les actions effectuées..."
-                        value={interventionReport.actions}
-                        onChange={(e) => setInterventionReport({...interventionReport, actions: e.target.value})}
-                      />
+                    
+                    <div className="flex gap-4">
+                      <Button className="flex-1">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Finaliser l'intervention
+                      </Button>
+                      <Button variant="outline" className="flex-1">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Sauvegarder le brouillon
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="parts">Pièces utilisées</Label>
-                      <Input
-                        id="parts"
-                        placeholder="Ex: Filtre hydraulique, Joint torique..."
-                        value={interventionReport.partsUsed}
-                        onChange={(e) => setInterventionReport({...interventionReport, partsUsed: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Temps passé (heures)</Label>
-                      <Input
-                        id="time"
-                        type="number"
-                        placeholder="2.5"
-                        value={interventionReport.timeSpent}
-                        onChange={(e) => setInterventionReport({...interventionReport, timeSpent: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4">
-                    <Button className="flex-1">
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Finaliser l'intervention
-                    </Button>
-                    <Button variant="outline" className="flex-1">
-                      <FileText className="w-4 h-4 mr-2" />
-                      Sauvegarder le brouillon
-                    </Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="flex items-center justify-center h-96">
+                <div className="text-center text-muted-foreground">
+                  <Cog className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Sélectionnez une machine pour commencer</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
