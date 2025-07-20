@@ -21,6 +21,7 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { AddMachineModal } from "./AddMachineModal";
 
 const mockMachines = [
   {
@@ -28,6 +29,7 @@ const mockMachines = [
     name: "Presse hydraulique A",
     type: "Presse",
     location: "Atelier 1",
+    department: "Production",
     status: "operational",
     lastMaintenance: "2024-01-15",
     nextMaintenance: "2024-02-15",
@@ -37,7 +39,8 @@ const mockMachines = [
     id: "M002", 
     name: "Compresseur B",
     type: "Compresseur",
-    location: "Atelier 2", 
+    location: "Atelier 2",
+    department: "Maintenance", 
     status: "maintenance",
     lastMaintenance: "2024-01-10",
     nextMaintenance: "2024-02-10",
@@ -48,6 +51,7 @@ const mockMachines = [
     name: "Convoyeur C",
     type: "Convoyeur",
     location: "Ligne 1",
+    department: "Logistique",
     status: "alert",
     lastMaintenance: "2024-01-05",
     nextMaintenance: "2024-01-20",
@@ -144,10 +148,7 @@ export const AdminDashboard = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Machines</CardTitle>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle Machine
-            </Button>
+            <AddMachineModal />
           </div>
           <div className="flex gap-4">
             <div className="relative flex-1">
@@ -168,6 +169,7 @@ export const AdminDashboard = () => {
                 <TableHead>Machine</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Emplacement</TableHead>
+                <TableHead>Département</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Technicien Assigné</TableHead>
                 <TableHead>Prochaine Maintenance</TableHead>
@@ -181,6 +183,7 @@ export const AdminDashboard = () => {
                   <TableCell>{machine.name}</TableCell>
                   <TableCell>{machine.type}</TableCell>
                   <TableCell>{machine.location}</TableCell>
+                  <TableCell>{machine.department}</TableCell>
                   <TableCell>{getStatusBadge(machine.status)}</TableCell>
                   <TableCell>{machine.assignedTech}</TableCell>
                   <TableCell>{machine.nextMaintenance}</TableCell>
