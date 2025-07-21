@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { AddMachineModal } from "./AddMachineModal";
 import { AddTechnicianModal } from "./AddTechnicianModal";
 import { AddUserModal } from "./AddUserModal";
+import { TicketList } from "../tickets/TicketList";
 
 const mockMachines = [
   {
@@ -251,6 +252,9 @@ export const AdminDashboard = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Tickets Management */}
+      <TicketList viewType="admin" />
     </div>
   );
 };
