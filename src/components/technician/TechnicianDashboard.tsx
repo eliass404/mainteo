@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { CreateTicketModal } from "../tickets/CreateTicketModal";
-import { TicketList } from "../tickets/TicketList";
+import { TicketBoard } from "../tickets/TicketBoard";
 
 const mockMachines = [
   {
@@ -348,7 +348,7 @@ export const TechnicianDashboard = () => {
       </div>
 
       {/* Tickets Section */}
-      <TicketList viewType="technician" technicianName="Jean Dupont" />
+      <TicketBoard userRole="technician" currentUser="Jean Dupont" />
     </div>
   );
 };
