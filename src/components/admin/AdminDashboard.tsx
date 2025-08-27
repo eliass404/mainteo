@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { AddMachineModal } from "./AddMachineModal";
 import { AddTechnicianModal } from "./AddTechnicianModal";
 import { AddUserModal } from "./AddUserModal";
-import { TicketBoard } from "../tickets/TicketBoard";
+
 
 const mockMachines = [
   {
@@ -253,8 +253,6 @@ export const AdminDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Tickets Management */}
-      <TicketBoard userRole="admin" currentUser="Admin Système" />
     </div>
   );
 };

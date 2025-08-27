@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Building2, LogOut, Settings, User, Bell } from "lucide-react";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+
 
 interface HeaderProps {
   user: {
@@ -39,7 +39,7 @@ export const Header = ({ user, onLogout }: HeaderProps) => {
         </div>
 
         <div className="flex items-center gap-4">
-          <NotificationCenter />
+          
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

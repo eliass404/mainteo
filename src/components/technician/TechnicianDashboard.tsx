@@ -21,8 +21,6 @@ import {
   FileCheck
 } from "lucide-react";
 import { useState } from "react";
-import { CreateTicketModal } from "../tickets/CreateTicketModal";
-import { TicketBoard } from "../tickets/TicketBoard";
 
 const mockMachines = [
   {
@@ -145,7 +143,7 @@ export const TechnicianDashboard = () => {
             <h2 className="text-2xl font-bold mb-2">Espace Technicien</h2>
             <p className="text-blue-100">Sélectionnez une machine pour commencer l'assistance IA</p>
           </div>
-          <CreateTicketModal />
+          
         </div>
       </div>
 
@@ -347,8 +345,6 @@ export const TechnicianDashboard = () => {
         </div>
       </div>
 
-      {/* Tickets Section */}
-      <TicketBoard userRole="technician" currentUser="Jean Dupont" />
     </div>
   );
 };
