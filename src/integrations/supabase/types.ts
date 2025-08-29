@@ -14,7 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          machine_id: string
+          role: string
+          technician_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          machine_id: string
+          role: string
+          technician_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          machine_id?: string
+          role?: string
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      intervention_reports: {
+        Row: {
+          actions: string | null
+          created_at: string
+          description: string
+          id: string
+          machine_id: string
+          parts_used: string | null
+          status: string
+          technician_id: string
+          time_spent: number | null
+          updated_at: string
+        }
+        Insert: {
+          actions?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          machine_id: string
+          parts_used?: string | null
+          status?: string
+          technician_id: string
+          time_spent?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actions?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          machine_id?: string
+          parts_used?: string | null
+          status?: string
+          technician_id?: string
+          time_spent?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_reports_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_reports_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      machines: {
+        Row: {
+          assigned_technician_id: string | null
+          created_at: string
+          department: string
+          description: string | null
+          id: string
+          last_maintenance: string | null
+          location: string
+          manual_url: string | null
+          name: string
+          next_maintenance: string | null
+          notice_url: string | null
+          serial_number: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_technician_id?: string | null
+          created_at?: string
+          department: string
+          description?: string | null
+          id: string
+          last_maintenance?: string | null
+          location: string
+          manual_url?: string | null
+          name: string
+          next_maintenance?: string | null
+          notice_url?: string | null
+          serial_number?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_technician_id?: string | null
+          created_at?: string
+          department?: string
+          description?: string | null
+          id?: string
+          last_maintenance?: string | null
+          location?: string
+          manual_url?: string | null
+          name?: string
+          next_maintenance?: string | null
+          notice_url?: string | null
+          serial_number?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machines_assigned_technician_id_fkey"
+            columns: ["assigned_technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
