@@ -1,34 +1,36 @@
-import { useState } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Header } from '@/components/layout/Header';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { TechnicianDashboard } from '@/components/technician/TechnicianDashboard';
-
-interface User {
-  role: 'admin' | 'technicien';
-  username: string;
-}
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, profile, loading, signOut } = useAuth();
 
-  const handleLogin = (role: 'admin' | 'technicien', username: string) => {
-    setUser({ role, username });
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-  };
-
-  if (!user) {
-    return <LoginForm onLogin={handleLogin} />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </div>
+    );
   }
+
+  if (!user || !profile) {
+    return <LoginForm />;
+  }
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header user={user} onLogout={handleLogout} />
+      <Header user={profile} onLogout={handleLogout} />
       <main>
-        {user.role === 'admin' ? (
+        {profile.role === 'admin' ? (
           <AdminDashboard />
         ) : (
           <TechnicianDashboard />

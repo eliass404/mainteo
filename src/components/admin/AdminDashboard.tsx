@@ -26,49 +26,114 @@ import { AddTechnicianModal } from "./AddTechnicianModal";
 import { AddUserModal } from "./AddUserModal";
 
 
-const mockMachines = [
-  {
-    id: "M001",
-    name: "Presse hydraulique A",
-    type: "Presse",
-    location: "Atelier 1",
-    department: "Production",
-    status: "operational",
-    lastMaintenance: "2024-01-15",
-    nextMaintenance: "2024-02-15",
-    assignedTech: "Jean Dupont"
-  },
-  {
-    id: "M002", 
-    name: "Compresseur B",
-    type: "Compresseur",
-    location: "Atelier 2",
-    department: "Maintenance", 
-    status: "maintenance",
-    lastMaintenance: "2024-01-10",
-    nextMaintenance: "2024-02-10",
-    assignedTech: "Marie Martin"
-  },
-  {
-    id: "M003",
-    name: "Convoyeur C",
-    type: "Convoyeur",
-    location: "Ligne 1",
-    department: "Logistique",
-    status: "alert",
-    lastMaintenance: "2024-01-05",
-    nextMaintenance: "2024-01-20",
-    assignedTech: "Pierre Durand"
-  }
-];
-
-const mockTechnicians = [
-  { id: 1, name: "Jean Dupont", status: "available", machinesCount: 5 },
-  { id: 2, name: "Marie Martin", status: "busy", machinesCount: 3 },
-  { id: 3, name: "Pierre Durand", status: "available", machinesCount: 4 }
-];
+import { useState, useEffect } from "react";
+import { useMachines } from "@/hooks/useMachines";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 export const AdminDashboard = () => {
+  const { machines, loading: machinesLoading } = useMachines();
+  const { toast } = useToast();
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalMachines: 0,
+    totalTechnicians: 0,
+    activeInterventions: 0,
+    alerts: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    loadTechnicians();
+    loadStats();
+  }, []);
+
+  useEffect(() => {
+    if (machines.length > 0) {
+      updateStats();
+    }
+  }, [machines]);
+
+  const loadTechnicians = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'technicien');
+
+      if (error) {
+        throw error;
+      }
+
+      // Get machine counts for each technician
+      const techsWithCounts = await Promise.all(
+        (data || []).map(async (tech) => {
+          const { count } = await supabase
+            .from('machines')
+            .select('*', { count: 'exact', head: true })
+            .eq('assigned_technician_id', tech.user_id);
+
+          return {
+            id: tech.id,
+            name: tech.username,
+            user_id: tech.user_id,
+            status: 'available', // You could add this to the profiles table
+            machinesCount: count || 0
+          };
+        })
+      );
+
+      setTechnicians(techsWithCounts);
+    } catch (error) {
+      console.error('Error loading technicians:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les techniciens",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      setLoadingStats(true);
+
+      // Load intervention reports count
+      const { count: interventionsCount } = await supabase
+        .from('intervention_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'en-cours');
+
+      // Load technicians count
+      const { count: techniciansCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'technicien');
+
+      setStats(prev => ({
+        ...prev,
+        totalTechnicians: techniciansCount || 0,
+        activeInterventions: interventionsCount || 0
+      }));
+
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const updateStats = () => {
+    const totalMachines = machines.length;
+    const alerts = machines.filter(m => m.status === 'alert').length;
+
+    setStats(prev => ({
+      ...prev,
+      totalMachines,
+      alerts
+    }));
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'operational':
@@ -102,7 +167,9 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Machines</p>
-                <p className="text-3xl font-bold text-foreground">24</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {loadingStats ? "..." : stats.totalMachines}
+                </p>
               </div>
               <Cog className="w-8 h-8 text-primary" />
             </div>
@@ -114,7 +181,9 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Techniciens</p>
-                <p className="text-3xl font-bold text-foreground">8</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {loadingStats ? "..." : stats.totalTechnicians}
+                </p>
               </div>
               <Users className="w-8 h-8 text-primary" />
             </div>
@@ -126,7 +195,9 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Interventions en cours</p>
-                <p className="text-3xl font-bold text-foreground">3</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {loadingStats ? "..." : stats.activeInterventions}
+                </p>
               </div>
               <Clock className="w-8 h-8 text-warning" />
             </div>
@@ -138,7 +209,9 @@ export const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Alertes</p>
-                <p className="text-3xl font-bold text-foreground">1</p>
+                <p className="text-3xl font-bold text-foreground">
+                  {loadingStats ? "..." : stats.alerts}
+                </p>
               </div>
               <AlertTriangle className="w-8 h-8 text-destructive" />
             </div>
@@ -195,23 +268,42 @@ export const AdminDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockMachines.map((machine) => (
-                <TableRow key={machine.id}>
-                  <TableCell className="font-medium">{machine.id}</TableCell>
-                  <TableCell>{machine.name}</TableCell>
-                  <TableCell>{machine.type}</TableCell>
-                  <TableCell>{machine.location}</TableCell>
-                  <TableCell>{machine.department}</TableCell>
-                  <TableCell>{getStatusBadge(machine.status)}</TableCell>
-                  <TableCell>{machine.assignedTech}</TableCell>
-                  <TableCell>{machine.nextMaintenance}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
+              {machinesLoading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      Chargement des machines...
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : machines.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    Aucune machine trouvée. Ajoutez votre première machine.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                machines.map((machine) => (
+                  <TableRow key={machine.id}>
+                    <TableCell className="font-medium">{machine.id}</TableCell>
+                    <TableCell>{machine.name}</TableCell>
+                    <TableCell>{machine.type}</TableCell>
+                    <TableCell>{machine.location}</TableCell>
+                    <TableCell>{machine.department}</TableCell>
+                    <TableCell>{getStatusBadge(machine.status)}</TableCell>
+                    <TableCell>
+                      {technicians.find(t => t.user_id === machine.assigned_technician_id)?.name || 'Non assigné'}
+                    </TableCell>
+                    <TableCell>{machine.next_maintenance || 'Non programmée'}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -236,18 +328,26 @@ export const AdminDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTechnicians.map((tech) => (
-                <TableRow key={tech.id}>
-                  <TableCell className="font-medium">{tech.name}</TableCell>
-                  <TableCell>{getTechnicianStatusBadge(tech.status)}</TableCell>
-                  <TableCell>{tech.machinesCount}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
+              {technicians.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    Aucun technicien trouvé. Ajoutez votre premier technicien.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                technicians.map((tech) => (
+                  <TableRow key={tech.id}>
+                    <TableCell className="font-medium">{tech.name}</TableCell>
+                    <TableCell>{getTechnicianStatusBadge(tech.status)}</TableCell>
+                    <TableCell>{tech.machinesCount}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

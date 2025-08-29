@@ -1,25 +1,60 @@
 import { useState } from "react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, User, Lock, Building2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Wrench, Shield, User, Mail, Lock, Building2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ui/use-toast";
 
-interface LoginFormProps {
-  onLogin: (role: 'admin' | 'technicien', username: string) => void;
-}
+export const LoginForm = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [role, setRole] = useState<'admin' | 'technicien'>('technicien');
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
+  const { toast } = useToast();
 
-export const LoginForm = ({ onLogin }: LoginFormProps) => {
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
-  });
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
 
-  const handleSubmit = (role: 'admin' | 'technicien') => {
-    if (credentials.username.trim()) {
-      onLogin(role, credentials.username);
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    
+    if (error) {
+      toast({
+        title: "Erreur de connexion",
+        description: error.message,
+        variant: "destructive",
+      });
     }
+    setIsLoading(false);
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim() || !username.trim()) return;
+
+    setIsLoading(true);
+    const { error } = await signUp(email, password, username, role);
+    
+    if (error) {
+      toast({
+        title: "Erreur d'inscription",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Compte créé",
+        description: "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.",
+      });
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -30,93 +65,142 @@ export const LoginForm = ({ onLogin }: LoginFormProps) => {
             <Building2 className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">IndustrialCare</h1>
-          <p className="text-blue-100">Gestion et maintenance industrielle</p>
+          <p className="text-blue-100">Gestion et maintenance industrielle avec IA</p>
         </div>
 
         <Card className="shadow-industrial">
           <CardHeader className="text-center">
-            <h2 className="text-2xl font-semibold text-foreground">Connexion</h2>
-            <p className="text-muted-foreground">Accédez à votre espace de travail</p>
+            <CardTitle className="text-2xl font-bold">Système de Maintenance</CardTitle>
+            <CardDescription>
+              Connectez-vous ou créez un compte pour accéder au système
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="admin" className="w-full">
+            <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="admin" className="flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Administrateur
-                </TabsTrigger>
-                <TabsTrigger value="technicien" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Technicien
-                </TabsTrigger>
+                <TabsTrigger value="signin">Connexion</TabsTrigger>
+                <TabsTrigger value="signup">Inscription</TabsTrigger>
               </TabsList>
-
-              <TabsContent value="admin" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-username">Nom d'utilisateur</Label>
-                  <Input
-                    id="admin-username"
-                    type="text"
-                    placeholder="admin"
-                    value={credentials.username}
-                    onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admin-password">Mot de passe</Label>
-                  <Input
-                    id="admin-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                  />
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => handleSubmit('admin')}
-                  disabled={!credentials.username.trim()}
-                >
-                  <Lock className="w-4 h-4 mr-2" />
-                  Se connecter en tant qu'administrateur
-                </Button>
+              
+              <TabsContent value="signin" className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="votre@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Connexion..." : "Se connecter"}
+                  </Button>
+                </form>
               </TabsContent>
-
-              <TabsContent value="technicien" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tech-username">Nom d'utilisateur</Label>
-                  <Input
-                    id="tech-username"
-                    type="text"
-                    placeholder="technicien"
-                    value={credentials.username}
-                    onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tech-password">Mot de passe</Label>
-                  <Input
-                    id="tech-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                  />
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => handleSubmit('technicien')}
-                  disabled={!credentials.username.trim()}
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Se connecter en tant que technicien
-                </Button>
+              
+              <TabsContent value="signup" className="space-y-4">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="votre@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Nom d'utilisateur</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Votre nom"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Rôle</Label>
+                    <Select value={role} onValueChange={(value: 'admin' | 'technicien') => setRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un rôle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="technicien">
+                          <div className="flex items-center gap-2">
+                            <Wrench className="w-4 h-4" />
+                            Technicien
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            Administrateur
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Création..." : "Créer un compte"}
+                  </Button>
+                </form>
               </TabsContent>
             </Tabs>
-
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Version démo - Entrez n'importe quel nom d'utilisateur</p>
-            </div>
           </CardContent>
         </Card>
       </div>

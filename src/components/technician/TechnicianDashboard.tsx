@@ -20,103 +20,112 @@ import {
   Wrench,
   FileCheck
 } from "lucide-react";
-import { useState } from "react";
-
-const mockMachines = [
-  {
-    id: "M001",
-    name: "Presse hydraulique A",
-    type: "Presse",
-    location: "Atelier 1",
-    status: "operational",
-    description: "Presse hydraulique 500T pour emboutissage",
-    lastMaintenance: "2024-01-15",
-    nextMaintenance: "2024-02-15",
-    hasManual: true,
-    hasNotice: true
-  },
-  {
-    id: "M002",
-    name: "Compresseur B",
-    type: "Compresseur",
-    location: "Atelier 2",
-    status: "maintenance",
-    description: "Compresseur d'air 50L",
-    lastMaintenance: "2024-01-10",
-    nextMaintenance: "2024-02-10",
-    hasManual: true,
-    hasNotice: false
-  },
-  {
-    id: "M003",
-    name: "Convoyeur C",
-    type: "Convoyeur",
-    location: "Ligne 1",
-    status: "alert",
-    description: "Convoyeur à bande 50m de long",
-    lastMaintenance: "2024-01-05",
-    nextMaintenance: "2024-01-20",
-    hasManual: false,
-    hasNotice: true
-  }
-];
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useMachines } from "@/hooks/useMachines";
+import { useAIChat } from "@/hooks/useAIChat";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const TechnicianDashboard = () => {
+  const { profile } = useAuth();
+  const { getUserMachines } = useMachines();
+  const { chatMessages, isLoading, sendMessage, initializeChat } = useAIChat();
+  const { toast } = useToast();
+  
+  const [userMachines, setUserMachines] = useState<any[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [isAiReady, setIsAiReady] = useState(false);
+  const [loadingMachines, setLoadingMachines] = useState(true);
   const [interventionReport, setInterventionReport] = useState({
     description: "",
     actions: "",
-    partsUsed: "",
-    timeSpent: "",
+    parts_used: "",
+    time_spent: "",
     status: "en-cours"
   });
 
-  const handleMachineSelect = async (machineId: string) => {
-    setSelectedMachine(machineId);
-    setIsAiReady(false);
-    setChatMessages([]);
+  useEffect(() => {
+    if (profile) {
+      loadUserMachines();
+    }
+  }, [profile]);
+
+  const loadUserMachines = async () => {
+    if (!profile) return;
     
-    const machine = mockMachines.find(m => m.id === machineId);
-    if (machine) {
-      // Simuler le chargement des documents par l'IA
-      setChatMessages([{
-        role: 'assistant',
-        content: `🔄 Analyse en cours des documents de la machine ${machine.name}...`
-      }]);
-      
-      // Simuler le temps de traitement
-      setTimeout(() => {
-        setIsAiReady(true);
-        const docs = [];
-        if (machine.hasManual) docs.push('le manuel d\'utilisation');
-        if (machine.hasNotice) docs.push('la notice technique');
-        
-        setChatMessages([{
-          role: 'assistant',
-          content: `✅ J'ai analysé ${docs.join(' et ')} de la machine ${machine.name}. Je suis maintenant prêt à répondre à vos questions sur cette machine. Comment puis-je vous aider ?`
-        }]);
-      }, 2000);
+    setLoadingMachines(true);
+    try {
+      const machines = await getUserMachines(profile.user_id);
+      setUserMachines(machines);
+    } catch (error) {
+      console.error('Error loading user machines:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger vos machines assignées",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMachines(false);
     }
   };
 
-  const sendMessage = () => {
-    if (!inputMessage.trim() || !isAiReady) return;
+  const handleMachineSelect = async (machineId: string) => {
+    setSelectedMachine(machineId);
+    const machine = userMachines.find(m => m.id === machineId);
+    if (machine) {
+      await initializeChat(machineId, machine.name);
+    }
+  };
 
-    const userMessage = { role: 'user' as const, content: inputMessage };
-    setChatMessages(prev => [...prev, userMessage]);
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || !selectedMachine || isLoading) return;
+    
+    await sendMessage(inputMessage, selectedMachine);
     setInputMessage("");
+  };
 
-    // Simuler une réponse de l'IA
-    setTimeout(() => {
-      const assistantMessage = {
-        role: 'assistant' as const,
-        content: `D'après l'analyse des documents techniques de cette machine, voici ma réponse : ${inputMessage}. Les procédures recommandées sont détaillées dans le manuel d'utilisation.`
-      };
-      setChatMessages(prev => [...prev, assistantMessage]);
-    }, 1000);
+  const handleSaveReport = async () => {
+    if (!selectedMachine || !profile) return;
+
+    try {
+      const { error } = await supabase
+        .from('intervention_reports')
+        .insert({
+          machine_id: selectedMachine,
+          technician_id: profile.user_id,
+          description: interventionReport.description,
+          actions: interventionReport.actions,
+          parts_used: interventionReport.parts_used,
+          time_spent: parseFloat(interventionReport.time_spent) || null,
+          status: interventionReport.status
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Succès",
+        description: "Rapport d'intervention sauvegardé",
+      });
+
+      // Reset form
+      setInterventionReport({
+        description: "",
+        actions: "",
+        parts_used: "",
+        time_spent: "",
+        status: "en-cours"
+      });
+    } catch (error) {
+      console.error('Error saving report:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder le rapport",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -132,7 +141,7 @@ export const TechnicianDashboard = () => {
     }
   };
 
-  const selectedMachineData = mockMachines.find(m => m.id === selectedMachine);
+  const selectedMachineData = userMachines.find(m => m.id === selectedMachine);
 
   return (
     <div className="p-6 space-y-6">
@@ -141,9 +150,11 @@ export const TechnicianDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold mb-2">Espace Technicien</h2>
-            <p className="text-blue-100">Sélectionnez une machine pour commencer l'assistance IA</p>
+            <p className="text-blue-100">
+              Bonjour {profile?.username}! Sélectionnez une machine pour commencer l'assistance IA
+            </p>
           </div>
-          
+          <Bot className="w-12 h-12 text-white/80" />
         </div>
       </div>
 
@@ -157,57 +168,74 @@ export const TechnicianDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Sélectionner une machine</Label>
-              <Select value={selectedMachine || ""} onValueChange={handleMachineSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une machine" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockMachines.map((machine) => (
-                    <SelectItem key={machine.id} value={machine.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{machine.id} - {machine.name}</span>
-                        <div className="flex gap-1">
-                          {machine.hasManual && (
-                            <span className="text-xs bg-primary/10 text-primary px-1 rounded">Manuel</span>
-                          )}
-                          {machine.hasNotice && (
-                            <span className="text-xs bg-accent/10 text-accent-foreground px-1 rounded">Notice</span>
-                          )}
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedMachineData && (
-              <div className="p-4 rounded-lg border bg-muted/20">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-sm">{selectedMachineData.name}</h3>
-                  {getStatusBadge(selectedMachineData.status)}
-                </div>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3 h-3" />
-                    {selectedMachineData.location}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3 h-3" />
-                    Prochaine: {selectedMachineData.nextMaintenance}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="w-3 h-3" />
-                    {selectedMachineData.hasManual && selectedMachineData.hasNotice 
-                      ? "Manuel + Notice disponibles"
-                      : selectedMachineData.hasManual 
-                        ? "Manuel disponible" 
-                        : "Notice disponible"}
-                  </div>
-                </div>
+            {loadingMachines ? (
+              <div className="text-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">Chargement...</p>
               </div>
+            ) : userMachines.length === 0 ? (
+              <div className="text-center py-4">
+                <Cog className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Aucune machine assignée</p>
+                <p className="text-xs text-muted-foreground">Contactez votre administrateur</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Sélectionner une machine</Label>
+                  <Select value={selectedMachine || ""} onValueChange={handleMachineSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une machine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userMachines.map((machine) => (
+                        <SelectItem key={machine.id} value={machine.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{machine.id} - {machine.name}</span>
+                            <div className="flex gap-1">
+                              {machine.manual_url && (
+                                <span className="text-xs bg-primary/10 text-primary px-1 rounded">Manuel</span>
+                              )}
+                              {machine.notice_url && (
+                                <span className="text-xs bg-accent/10 text-accent-foreground px-1 rounded">Notice</span>
+                              )}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedMachineData && (
+                  <div className="p-4 rounded-lg border bg-muted/20">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-semibold text-sm">{selectedMachineData.name}</h3>
+                      {getStatusBadge(selectedMachineData.status)}
+                    </div>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3 h-3" />
+                        {selectedMachineData.location}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3 h-3" />
+                        Prochaine: {selectedMachineData.next_maintenance || 'Non programmée'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FileCheck className="w-3 h-3" />
+                        {selectedMachineData.manual_url && selectedMachineData.notice_url 
+                          ? "Manuel + Notice disponibles"
+                          : selectedMachineData.manual_url 
+                            ? "Manuel disponible" 
+                            : selectedMachineData.notice_url
+                              ? "Notice disponible"
+                              : "Aucun document"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -220,6 +248,7 @@ export const TechnicianDashboard = () => {
                 <CardTitle className="flex items-center gap-2">
                   <Wrench className="w-5 h-5" />
                   {selectedMachineData?.name}
+                  <Badge variant="outline" className="ml-auto">MAIA Ready</Badge>
                 </CardTitle>
                 <p className="text-muted-foreground">{selectedMachineData?.description}</p>
               </CardHeader>
@@ -228,7 +257,7 @@ export const TechnicianDashboard = () => {
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="chat" className="flex items-center gap-2">
                       <MessageCircle className="w-4 h-4" />
-                      Assistant IA
+                      Assistant IA MAIA
                     </TabsTrigger>
                     <TabsTrigger value="rapport" className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
@@ -247,6 +276,9 @@ export const TechnicianDashboard = () => {
                               ) : (
                                 <Bot className="w-4 h-4 text-primary" />
                               )}
+                              <span className="text-xs text-muted-foreground">
+                                {msg.role === 'user' ? 'Vous' : 'MAIA'}
+                              </span>
                             </div>
                             <div className={`p-3 rounded-lg whitespace-pre-wrap ${
                               msg.role === 'user' 
@@ -258,19 +290,34 @@ export const TechnicianDashboard = () => {
                           </div>
                         </div>
                       ))}
+                      {isLoading && (
+                        <div className="flex gap-3 justify-start">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Bot className="w-4 h-4 text-primary" />
+                            <span className="text-xs text-muted-foreground">MAIA</span>
+                          </div>
+                          <div className="bg-white border p-3 rounded-lg">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex gap-2">
                       <Input
-                        placeholder={isAiReady ? "Décrivez le problème ou posez une question..." : "Veuillez attendre que l'IA analyse les documents..."}
+                        placeholder="Décrivez le problème ou posez une question à MAIA..."
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        disabled={!isAiReady}
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        disabled={isLoading}
                       />
                       <Button 
-                        onClick={sendMessage} 
-                        disabled={!isAiReady || !inputMessage.trim()}
+                        onClick={handleSendMessage} 
+                        disabled={isLoading || !inputMessage.trim()}
                       >
                         <Send className="w-4 h-4" />
                       </Button>
@@ -302,8 +349,8 @@ export const TechnicianDashboard = () => {
                         <Input
                           id="parts"
                           placeholder="Ex: Filtre hydraulique, Joint torique..."
-                          value={interventionReport.partsUsed}
-                          onChange={(e) => setInterventionReport({...interventionReport, partsUsed: e.target.value})}
+                          value={interventionReport.parts_used}
+                          onChange={(e) => setInterventionReport({...interventionReport, parts_used: e.target.value})}
                         />
                       </div>
                       <div className="space-y-2">
@@ -311,19 +358,29 @@ export const TechnicianDashboard = () => {
                         <Input
                           id="time"
                           type="number"
+                          step="0.1"
                           placeholder="2.5"
-                          value={interventionReport.timeSpent}
-                          onChange={(e) => setInterventionReport({...interventionReport, timeSpent: e.target.value})}
+                          value={interventionReport.time_spent}
+                          onChange={(e) => setInterventionReport({...interventionReport, time_spent: e.target.value})}
                         />
                       </div>
                     </div>
                     
                     <div className="flex gap-4">
-                      <Button className="flex-1">
+                      <Button 
+                        className="flex-1"
+                        onClick={() => setInterventionReport({...interventionReport, status: 'termine'})}
+                        disabled={!interventionReport.description.trim()}
+                      >
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Finaliser l'intervention
                       </Button>
-                      <Button variant="outline" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={handleSaveReport}
+                        disabled={!interventionReport.description.trim()}
+                      >
                         <FileText className="w-4 h-4 mr-2" />
                         Sauvegarder le brouillon
                       </Button>
@@ -336,15 +393,16 @@ export const TechnicianDashboard = () => {
             <Card>
               <CardContent className="flex items-center justify-center h-96">
                 <div className="text-center text-muted-foreground">
-                  <Cog className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Sélectionnez une machine pour commencer</p>
+                  <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">MAIA Assistant IA</h3>
+                  <p>Sélectionnez une machine pour commencer l'assistance IA</p>
+                  <p className="text-sm mt-2">MAIA analysera automatiquement les documents techniques disponibles</p>
                 </div>
               </CardContent>
             </Card>
           )}
         </div>
       </div>
-
     </div>
   );
 };
