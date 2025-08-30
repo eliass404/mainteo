@@ -60,11 +60,15 @@ export const useAuth = () => {
       }
 
       if (!data) {
-        // Create a default profile if missing
-        const fallbackUsername = email ? email.split('@')[0] : 'utilisateur';
+        // Get user metadata to check for role
+        const { data: { user } } = await supabase.auth.getUser();
+        const userRole = user?.user_metadata?.role || 'technicien';
+        const userUsername = user?.user_metadata?.username || (email ? email.split('@')[0] : 'utilisateur');
+        
+        // Create a profile using the role from signup metadata
         const { data: created, error: insertError } = await supabase
           .from('profiles')
-          .insert({ user_id: userId, username: fallbackUsername, role: 'technicien' })
+          .insert({ user_id: userId, username: userUsername, role: userRole })
           .select('*')
           .single();
         if (insertError) {
