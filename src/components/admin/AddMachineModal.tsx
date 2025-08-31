@@ -8,23 +8,10 @@ import { Upload, FileText, X } from "lucide-react";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect } from "react";
 
-const departments = [
-  "Production",
-  "Maintenance",
-  "Qualité", 
-  "Logistique",
-  "R&D"
-];
-
-const machineTypes = [
-  "Presse",
-  "Compresseur",
-  "Convoyeur",
-  "Fraiseuse",
-  "Tour",
-  "Robot"
-];
+// Dynamic departments and types loaded from database
 
 export const AddMachineModal = () => {
   const [open, setOpen] = useState(false);
@@ -33,13 +20,18 @@ export const AddMachineModal = () => {
     type: "",
     location: "",
     serialNumber: "",
-    department: ""
+    department: "",
+    assignedTechnicians: [] as string[]
   });
   
   const [files, setFiles] = useState({
     notice: null as File | null,
     manual: null as File | null
   });
+
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [machineTypes, setMachineTypes] = useState<string[]>([]);
 
   
   const handleFileChange = (type: 'notice' | 'manual') => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,11 +49,77 @@ export const AddMachineModal = () => {
 
   const { toast } = useToast();
 
+  useEffect(() => {
+    loadTechnicians();
+    loadDepartments();
+    loadMachineTypes();
+  }, []);
+
+  const loadTechnicians = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .eq('role', 'technicien');
+      
+      if (error) throw error;
+      setTechnicians(data || []);
+    } catch (error) {
+      console.error('Error loading technicians:', error);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('machines')
+        .select('department')
+        .not('department', 'is', null);
+      
+      if (error) throw error;
+      
+      const uniqueDepartments = [...new Set(data?.map(m => m.department) || [])];
+      setDepartments(uniqueDepartments);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
+  };
+
+  const loadMachineTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('machines')
+        .select('type')
+        .not('type', 'is', null);
+      
+      if (error) throw error;
+      
+      const uniqueTypes = [...new Set(data?.map(m => m.type) || [])];
+      setMachineTypes(uniqueTypes);
+    } catch (error) {
+      console.error('Error loading machine types:', error);
+    }
+  };
+
+  const handleTechnicianToggle = (technicianId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedTechnicians: prev.assignedTechnicians.includes(technicianId)
+        ? prev.assignedTechnicians.filter(id => id !== technicianId)
+        : [...prev.assignedTechnicians, technicianId]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.type || !formData.location || !formData.department) {
       toast({ title: 'Champs manquants', description: 'Veuillez remplir tous les champs requis.', variant: 'destructive' });
+      return;
+    }
+
+    if (!files.manual) {
+      toast({ title: 'Manuel requis', description: 'Le manuel d\'utilisation est obligatoire.', variant: 'destructive' });
       return;
     }
 
@@ -86,6 +144,25 @@ export const AddMachineModal = () => {
         manual_url = path;
       }
 
+      // Check for duplicate machine by name and location
+      const { data: existingMachine, error: checkError } = await supabase
+        .from('machines')
+        .select('id')
+        .eq('name', formData.name)
+        .eq('location', formData.location)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      
+      if (existingMachine) {
+        toast({ 
+          title: 'Machine déjà existante', 
+          description: 'Une machine avec ce nom existe déjà à cet emplacement.', 
+          variant: 'destructive' 
+        });
+        return;
+      }
+
       const { error: insertError } = await supabase.from('machines').insert({
         id: machineId,
         name: formData.name,
@@ -95,14 +172,18 @@ export const AddMachineModal = () => {
         department: formData.department,
         notice_url,
         manual_url,
+        assigned_technician_id: formData.assignedTechnicians[0] || null, // Assign first selected technician
       });
 
       if (insertError) throw insertError;
 
       toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
       setOpen(false);
-      setFormData({ name: '', type: '', location: '', serialNumber: '', department: '' });
+      setFormData({ name: '', type: '', location: '', serialNumber: '', department: '', assignedTechnicians: [] });
       setFiles({ notice: null, manual: null });
+      
+      // Refresh the page to update the machines list
+      window.location.reload();
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message || 'Impossible de créer la machine', variant: 'destructive' });
     }
@@ -155,8 +236,15 @@ export const AddMachineModal = () => {
                   {machineTypes.map((type) => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
+                  <SelectItem value="__add_new__">+ Ajouter un nouveau type</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.type === "__add_new__" && (
+                <Input
+                  placeholder="Nouveau type de machine"
+                  onChange={(e) => setFormData(prev => ({...prev, type: e.target.value}))}
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Emplacement</Label>
@@ -180,13 +268,46 @@ export const AddMachineModal = () => {
                 {departments.map((dept) => (
                   <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                 ))}
+                <SelectItem value="__add_new__">+ Ajouter un nouveau département</SelectItem>
               </SelectContent>
             </Select>
+            {formData.department === "__add_new__" && (
+              <Input
+                placeholder="Nouveau département"
+                onChange={(e) => setFormData(prev => ({...prev, department: e.target.value}))}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Label>Techniciens assignés</Label>
+            <div className="border rounded-md p-4 max-h-48 overflow-y-auto">
+              {technicians.length > 0 ? (
+                <div className="space-y-3">
+                  {technicians.map((technician) => (
+                    <div key={technician.user_id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={technician.user_id}
+                        checked={formData.assignedTechnicians.includes(technician.user_id)}
+                        onCheckedChange={() => handleTechnicianToggle(technician.user_id)}
+                      />
+                      <Label htmlFor={technician.user_id} className="text-sm font-normal">
+                        {technician.username}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Aucun technicien disponible
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Notice technique (PDF)</Label>
+              <Label>Notice technique (PDF) - Optionnelle</Label>
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
                 {files.notice ? (
                   <div className="flex items-center justify-between p-2 bg-muted rounded">
@@ -219,7 +340,7 @@ export const AddMachineModal = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Manuel d'utilisation (PDF)</Label>
+              <Label>Manuel d'utilisation (PDF) - Obligatoire</Label>
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
                 {files.manual ? (
                   <div className="flex items-center justify-between p-2 bg-muted rounded">

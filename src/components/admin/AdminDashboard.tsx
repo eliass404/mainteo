@@ -18,12 +18,17 @@ import {
   Plus,
   Search,
   Filter,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AddMachineModal } from "./AddMachineModal";
-import { AddTechnicianModal } from "./AddTechnicianModal";
 import { AddUserModal } from "./AddUserModal";
+import { EditMachineModal } from "./EditMachineModal";
+import { EditUserModal } from "./EditUserModal";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 import { useState, useEffect } from "react";
@@ -32,9 +37,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 export const AdminDashboard = () => {
-  const { machines, loading: machinesLoading } = useMachines();
+  const { machines, loading: machinesLoading, fetchMachines } = useMachines();
   const { toast } = useToast();
-  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalMachines: 0,
     totalTechnicians: 0,
@@ -42,9 +47,11 @@ export const AdminDashboard = () => {
     alerts: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [editingMachine, setEditingMachine] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
 
   useEffect(() => {
-    loadTechnicians();
+    loadUsers();
     loadStats();
   }, []);
 
@@ -54,41 +61,37 @@ export const AdminDashboard = () => {
     }
   }, [machines]);
 
-  const loadTechnicians = async () => {
+  const loadUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('role', 'technicien');
+        .select('*');
 
       if (error) {
         throw error;
       }
 
-      // Get machine counts for each technician
-      const techsWithCounts = await Promise.all(
-        (data || []).map(async (tech) => {
+      // Get machine counts for technicians
+      const usersWithCounts = await Promise.all(
+        (data || []).map(async (user) => {
           const { count } = await supabase
             .from('machines')
             .select('*', { count: 'exact', head: true })
-            .eq('assigned_technician_id', tech.user_id);
+            .eq('assigned_technician_id', user.user_id);
 
           return {
-            id: tech.id,
-            name: tech.username,
-            user_id: tech.user_id,
-            status: 'available', // You could add this to the profiles table
+            ...user,
             machinesCount: count || 0
           };
         })
       );
 
-      setTechnicians(techsWithCounts);
+      setUsers(usersWithCounts);
     } catch (error) {
-      console.error('Error loading technicians:', error);
+      console.error('Error loading users:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les techniciens",
+        description: "Impossible de charger les utilisateurs",
         variant: "destructive",
       });
     }
@@ -158,6 +161,56 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteMachine = async (machineId: string) => {
+    try {
+      const { error } = await supabase
+        .from('machines')
+        .delete()
+        .eq('id', machineId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Machine supprimée",
+        description: "La machine a été supprimée avec succès.",
+      });
+
+      fetchMachines(); // Refresh machines list
+    } catch (error: any) {
+      console.error('Error deleting machine:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer la machine",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Utilisateur supprimé",
+        description: "L'utilisateur a été supprimé avec succès.",
+      });
+
+      loadUsers(); // Refresh users list
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer l'utilisateur",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Stats Cards */}
@@ -219,20 +272,6 @@ export const AdminDashboard = () => {
         </Card>
       </div>
 
-      {/* User Management */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Gestion des Utilisateurs</CardTitle>
-            <AddUserModal />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            Créez des comptes administrateur et technicien avec des mots de passe sécurisés.
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Machines Management */}
       <Card>
@@ -293,13 +332,45 @@ export const AdminDashboard = () => {
                     <TableCell>{machine.department}</TableCell>
                     <TableCell>{getStatusBadge(machine.status)}</TableCell>
                     <TableCell>
-                      {technicians.find(t => t.user_id === machine.assigned_technician_id)?.name || 'Non assigné'}
+                      {users.find(u => u.user_id === machine.assigned_technician_id)?.username || 'Non assigné'}
                     </TableCell>
                     <TableCell>{machine.next_maintenance || 'Non programmée'}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditingMachine(machine)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Êtes-vous sûr de vouloir supprimer la machine "{machine.name}" ? Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteMachine(machine.id)}>
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -309,41 +380,79 @@ export const AdminDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Technicians Management */}
+      {/* Unified User Management */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Gestion des Techniciens</CardTitle>
-            <AddTechnicianModal />
+            <CardTitle>Gestion des Utilisateurs</CardTitle>
+            <AddUserModal />
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Statut</TableHead>
+                <TableHead>Nom d'utilisateur</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Rôle</TableHead>
                 <TableHead>Machines Assignées</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {technicians.length === 0 ? (
+              {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Aucun technicien trouvé. Ajoutez votre premier technicien.
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Aucun utilisateur trouvé. Ajoutez votre premier utilisateur.
                   </TableCell>
                 </TableRow>
               ) : (
-                technicians.map((tech) => (
-                  <TableRow key={tech.id}>
-                    <TableCell className="font-medium">{tech.name}</TableCell>
-                    <TableCell>{getTechnicianStatusBadge(tech.status)}</TableCell>
-                    <TableCell>{tech.machinesCount}</TableCell>
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email || 'Non spécifié'}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        {user.role === 'admin' ? 'Administrateur' : 'Technicien'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{user.role === 'technicien' ? user.machinesCount : '-'}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Êtes-vous sûr de vouloir supprimer l'utilisateur "{user.username}" ? Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteUser(user.user_id)}>
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -352,6 +461,24 @@ export const AdminDashboard = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Modals */}
+      <EditMachineModal
+        machine={editingMachine}
+        open={!!editingMachine}
+        onOpenChange={(open) => !open && setEditingMachine(null)}
+        onMachineUpdated={() => {
+          fetchMachines();
+          loadUsers();
+        }}
+      />
+      
+      <EditUserModal
+        user={editingUser}
+        open={!!editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+        onUserUpdated={loadUsers}
+      />
 
     </div>
   );
