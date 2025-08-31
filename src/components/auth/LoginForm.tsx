@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wrench, Shield, User, Mail, Lock, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -23,16 +24,35 @@ export const LoginForm = () => {
     if (!email.trim() || !password.trim()) return;
 
     setIsLoading(true);
-    const { error } = await signIn(email, password);
-    
-    if (error) {
+    try {
+      let signinEmail = email.trim();
+      // Si l'utilisateur saisit un nom d'utilisateur, on récupère l'email associé
+      if (!signinEmail.includes('@')) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', signinEmail)
+          .maybeSingle();
+        if (error) throw error;
+        if (!profile?.email) {
+          throw new Error("Nom d'utilisateur introuvable ou email manquant");
+        }
+        signinEmail = profile.email;
+      }
+
+      const { error } = await signIn(signinEmail, password);
+      if (error) {
+        throw error;
+      }
+    } catch (err: any) {
       toast({
         title: "Erreur de connexion",
-        description: error.message,
+        description: err.message || 'Veuillez vérifier vos identifiants.',
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -40,21 +60,33 @@ export const LoginForm = () => {
     if (!email.trim() || !password.trim() || !username.trim()) return;
 
     setIsLoading(true);
-    const { error } = await signUp(email, password, username, role);
-    
-    if (error) {
-      toast({
-        title: "Erreur d'inscription",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+    try {
+      // Vérifier l'unicité du nom d'utilisateur côté client
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username.trim())
+        .maybeSingle();
+      if (existing) {
+        throw new Error("Ce nom d'utilisateur est déjà pris");
+      }
+
+      const { error } = await signUp(email, password, username, role);
+      if (error) throw error;
+
       toast({
         title: "Compte créé",
-        description: "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.",
+        description: "Vérifiez votre email pour confirmer votre compte. (Astuce: désactivez la confirmation email en phase de test dans Supabase)",
       });
+    } catch (err: any) {
+      toast({
+        title: "Erreur d'inscription",
+        description: err.message || "Impossible de créer le compte",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -85,18 +117,18 @@ export const LoginForm = () => {
               <TabsContent value="signin" className="space-y-4">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="votre@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
+                    <Label htmlFor="signin-identifier">Email ou nom d'utilisateur</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="signin-identifier"
+                          type="text"
+                          placeholder="email ou nom d'utilisateur"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
                     </div>
                   </div>
                   

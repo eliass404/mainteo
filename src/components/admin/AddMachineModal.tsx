@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileText, X } from "lucide-react";
 import { Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const departments = [
   "Production",
@@ -53,22 +55,57 @@ export const AddMachineModal = () => {
     setFiles(prev => ({ ...prev, [type]: null }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Nouvelle machine:", formData, "Fichiers:", files);
-    setOpen(false);
-    // Reset form
-    setFormData({
-      name: "",
-      type: "",
-      location: "",
-      serialNumber: "",
-      department: ""
-    });
-    setFiles({
-      notice: null,
-      manual: null
-    });
+
+    if (!formData.name || !formData.type || !formData.location || !formData.department) {
+      toast({ title: 'Champs manquants', description: 'Veuillez remplir tous les champs requis.', variant: 'destructive' });
+      return;
+    }
+
+    const machineId = `M-${crypto.randomUUID()}`;
+
+    try {
+      // Upload files if provided
+      let notice_url: string | null = null;
+      let manual_url: string | null = null;
+
+      if (files.notice) {
+        const path = `${machineId}/notice.pdf`;
+        const { error } = await supabase.storage.from('machine-documents').upload(path, files.notice, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        notice_url = path;
+      }
+
+      if (files.manual) {
+        const path = `${machineId}/manual.pdf`;
+        const { error } = await supabase.storage.from('machine-documents').upload(path, files.manual, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        manual_url = path;
+      }
+
+      const { error: insertError } = await supabase.from('machines').insert({
+        id: machineId,
+        name: formData.name,
+        type: formData.type,
+        location: formData.location,
+        serial_number: formData.serialNumber,
+        department: formData.department,
+        notice_url,
+        manual_url,
+      });
+
+      if (insertError) throw insertError;
+
+      toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
+      setOpen(false);
+      setFormData({ name: '', type: '', location: '', serialNumber: '', department: '' });
+      setFiles({ notice: null, manual: null });
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err.message || 'Impossible de créer la machine', variant: 'destructive' });
+    }
   };
 
   return (

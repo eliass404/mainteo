@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Copy, RefreshCw, Plus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const departments = [
   "Production",
@@ -20,7 +21,7 @@ export const AddUserModal = () => {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
+    username: "",
     email: "",
     phone: "",
     role: "",
@@ -43,20 +44,33 @@ export const AddUserModal = () => {
     toast.success("Mot de passe copié dans le presse-papiers");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Nouvel utilisateur:", formData);
-    toast.success(`Utilisateur ${formData.role} créé avec succès`);
-    setOpen(false);
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      role: "",
-      department: "",
-      password: ""
-    });
+    try {
+      if (!formData.username || !formData.email || !formData.password || !formData.role) {
+        throw new Error('Veuillez remplir les champs requis');
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: formData.email,
+          password: formData.password,
+          username: formData.username,
+          role: formData.role,
+          phone: formData.phone,
+          department: formData.department,
+        }
+      });
+
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || 'Création échouée');
+
+      toast.success(`Utilisateur ${formData.role} créé avec succès`);
+      setOpen(false);
+      setFormData({ username: '', email: '', phone: '', role: '', department: '', password: '' });
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la création');
+    }
   };
 
   return (
@@ -74,12 +88,12 @@ export const AddUserModal = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nom complet</Label>
+              <Label htmlFor="username">Nom d'utilisateur</Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))}
-                placeholder="Ex: Jean Dupont"
+                id="username"
+                value={formData.username}
+                onChange={(e) => setFormData(prev => ({...prev, username: e.target.value}))}
+                placeholder="Ex: jdupont"
                 required
               />
             </div>
@@ -114,7 +128,7 @@ export const AddUserModal = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrateur</SelectItem>
-                  <SelectItem value="technician">Technicien</SelectItem>
+                  <SelectItem value="technicien">Technicien</SelectItem>
                 </SelectContent>
               </Select>
             </div>
