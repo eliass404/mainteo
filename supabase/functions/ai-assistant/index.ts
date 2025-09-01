@@ -14,9 +14,9 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not set');
+    const GROQ_API_KEY = Deno.env.get('OPENAI_API_KEY'); // Using OPENAI_API_KEY env var but it's actually Groq
+    if (!GROQ_API_KEY) {
+      throw new Error('API key is not set');
     }
 
     const supabaseClient = createClient(
@@ -174,33 +174,33 @@ LANGUE: Français uniquement.`;
       { role: 'user', content: message }
     ];
 
-    console.log('Sending request to OpenAI with messages count:', messages.length);
+    console.log('Sending request to Groq with messages count:', messages.length);
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call Groq API
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'llama-3.1-70b-versatile',
         messages: messages,
         max_tokens: 1000,
-        temperature: 0.7
+        temperature: 0.3
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      console.error('Groq API error:', errorText);
+      throw new Error(`Groq API error: ${response.status}`);
     }
 
     const data = await response.json();
     const assistantMessage = data.choices[0].message.content;
 
-    console.log('Received response from OpenAI');
+    console.log('Received response from Groq');
 
     // Save assistant message
     await supabaseClient
