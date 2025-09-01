@@ -18,9 +18,11 @@ export const AddMachineModal = () => {
   const [formData, setFormData] = useState({
     name: "",
     type: "",
+    customType: "",
     location: "",
     serialNumber: "",
     department: "",
+    customDepartment: "",
     assignedTechnicians: [] as string[]
   });
   
@@ -113,7 +115,10 @@ export const AddMachineModal = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.type || !formData.location || !formData.department) {
+    const finalType = formData.type === "__add_new__" ? formData.customType : formData.type;
+    const finalDepartment = formData.department === "__add_new__" ? formData.customDepartment : formData.department;
+
+    if (!formData.name || !finalType || !formData.location || !finalDepartment) {
       toast({ title: 'Champs manquants', description: 'Veuillez remplir tous les champs requis.', variant: 'destructive' });
       return;
     }
@@ -166,10 +171,10 @@ export const AddMachineModal = () => {
       const { error: insertError } = await supabase.from('machines').insert({
         id: machineId,
         name: formData.name,
-        type: formData.type,
+        type: finalType,
         location: formData.location,
         serial_number: formData.serialNumber,
-        department: formData.department,
+        department: finalDepartment,
         notice_url,
         manual_url,
         assigned_technician_id: formData.assignedTechnicians[0] || null, // Assign first selected technician
@@ -179,7 +184,7 @@ export const AddMachineModal = () => {
 
       toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
       setOpen(false);
-      setFormData({ name: '', type: '', location: '', serialNumber: '', department: '', assignedTechnicians: [] });
+      setFormData({ name: '', type: '', customType: '', location: '', serialNumber: '', department: '', customDepartment: '', assignedTechnicians: [] });
       setFiles({ notice: null, manual: null });
       
       // Refresh the page to update the machines list
@@ -242,8 +247,9 @@ export const AddMachineModal = () => {
                {formData.type === "__add_new__" && (
                 <Input
                   placeholder="Nouveau type de machine"
+                  value={formData.customType}
                   autoFocus
-                  onChange={(e) => setFormData(prev => ({...prev, type: e.target.value}))}
+                  onChange={(e) => setFormData(prev => ({...prev, customType: e.target.value}))}
                 />
               )}
             </div>
@@ -275,8 +281,9 @@ export const AddMachineModal = () => {
              {formData.department === "__add_new__" && (
                <Input
                  placeholder="Nouveau département"
+                 value={formData.customDepartment}
                  autoFocus
-                 onChange={(e) => setFormData(prev => ({...prev, department: e.target.value}))}
+                 onChange={(e) => setFormData(prev => ({...prev, customDepartment: e.target.value}))}
                />
              )}
           </div>
