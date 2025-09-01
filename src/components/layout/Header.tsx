@@ -10,16 +10,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Building2, LogOut, Settings, User, Bell } from "lucide-react";
 
-
 interface HeaderProps {
   user: {
     role: 'admin' | 'technicien';
     username: string;
+    user_id: string;
+    email?: string;
   };
   onLogout: () => void;
+  onNavigate: (page: string) => void;
 }
 
-export const Header = ({ user, onLogout }: HeaderProps) => {
+export const Header = ({ user, onLogout, onNavigate }: HeaderProps) => {
   const roleLabel = user.role === 'admin' ? 'Administrateur' : 'Technicien';
   const roleColor = user.role === 'admin' ? 'destructive' : 'secondary';
 
@@ -58,14 +60,16 @@ export const Header = ({ user, onLogout }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-card border border-border">
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('profile')}>
                 <User className="w-4 h-4 mr-2" />
                 Profil
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings className="w-4 h-4 mr-2" />
-                Paramètres
-              </DropdownMenuItem>
+              {user.role === 'admin' && (
+                <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('settings')}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Paramètres
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="cursor-pointer text-destructive focus:text-destructive"

@@ -285,7 +285,7 @@ export const AdminDashboard = () => {
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Rechercher une machine..." className="pl-10" />
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => console.log('Filtres clicked')}>
               <Filter className="w-4 h-4 mr-2" />
               Filtres
             </Button>

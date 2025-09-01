@@ -239,9 +239,10 @@ export const AddMachineModal = () => {
                   <SelectItem value="__add_new__">+ Ajouter un nouveau type</SelectItem>
                 </SelectContent>
               </Select>
-              {formData.type === "__add_new__" && (
+               {formData.type === "__add_new__" && (
                 <Input
                   placeholder="Nouveau type de machine"
+                  autoFocus
                   onChange={(e) => setFormData(prev => ({...prev, type: e.target.value}))}
                 />
               )}
@@ -271,12 +272,13 @@ export const AddMachineModal = () => {
                 <SelectItem value="__add_new__">+ Ajouter un nouveau département</SelectItem>
               </SelectContent>
             </Select>
-            {formData.department === "__add_new__" && (
-              <Input
-                placeholder="Nouveau département"
-                onChange={(e) => setFormData(prev => ({...prev, department: e.target.value}))}
-              />
-            )}
+             {formData.department === "__add_new__" && (
+               <Input
+                 placeholder="Nouveau département"
+                 autoFocus
+                 onChange={(e) => setFormData(prev => ({...prev, department: e.target.value}))}
+               />
+             )}
           </div>
 
           <div className="space-y-3">

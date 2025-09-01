@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Header } from '@/components/layout/Header';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { TechnicianDashboard } from '@/components/technician/TechnicianDashboard';
+import { Settings } from './Settings';
+import { Profile } from './Profile';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
+  const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (loading) {
     return (
@@ -26,15 +30,27 @@ const Index = () => {
     await signOut();
   };
 
+  const handleNavigate = (page: string) => {
+    setCurrentPage(page);
+  };
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'settings':
+        return <Settings />;
+      case 'profile':
+        return <Profile user={profile} />;
+      case 'dashboard':
+      default:
+        return profile.role === 'admin' ? <AdminDashboard /> : <TechnicianDashboard />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <Header user={profile} onLogout={handleLogout} />
+      <Header user={profile} onLogout={handleLogout} onNavigate={handleNavigate} />
       <main>
-        {profile.role === 'admin' ? (
-          <AdminDashboard />
-        ) : (
-          <TechnicianDashboard />
-        )}
+        {renderCurrentPage()}
       </main>
     </div>
   );
