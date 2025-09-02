@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,9 +15,9 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not set');
+    const HUGGING_FACE_ACCESS_TOKEN = Deno.env.get('HUGGING_FACE_ACCESS_TOKEN');
+    if (!HUGGING_FACE_ACCESS_TOKEN) {
+      throw new Error('HUGGING_FACE_ACCESS_TOKEN is not set');
     }
 
     const supabaseClient = createClient(
@@ -174,32 +175,37 @@ LANGUE: Français uniquement.`;
       { role: 'user', content: message }
     ];
 
-    console.log('Sending request to OpenAI with messages count:', messages.length);
+    console.log('Sending request to Hugging Face with messages count:', messages.length);
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: messages,
-        max_completion_tokens: 1000
-      }),
+    // Initialize Hugging Face inference
+    const hf = new HfInference(HUGGING_FACE_ACCESS_TOKEN);
+
+    // Convert messages to a single prompt for Hugging Face
+    const conversationPrompt = messages.map(msg => {
+      if (msg.role === 'system') return `System: ${msg.content}`;
+      if (msg.role === 'user') return `User: ${msg.content}`;
+      if (msg.role === 'assistant') return `Assistant: ${msg.content}`;
+      return msg.content;
+    }).join('\n\n');
+
+    const fullPrompt = `${conversationPrompt}\n\nAssistant:`;
+
+    // Call Hugging Face text generation
+    const response = await hf.textGeneration({
+      model: 'microsoft/DialoGPT-large',
+      inputs: fullPrompt,
+      parameters: {
+        max_new_tokens: 1000,
+        temperature: 0.7,
+        top_p: 0.9,
+        do_sample: true,
+        return_full_text: false
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
+    const assistantMessage = response.generated_text || "Je suis désolé, je n'ai pas pu traiter votre demande. Pouvez-vous reformuler votre question?";
 
-    const data = await response.json();
-    const assistantMessage = data.choices[0].message.content;
-
-    console.log('Received response from OpenAI');
+    console.log('Received response from Hugging Face');
 
     // Save assistant message
     await supabaseClient
