@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -175,10 +175,7 @@ LANGUE: Français uniquement.`;
       { role: 'user', content: message }
     ];
 
-    console.log('Sending request to Hugging Face with messages count:', messages.length);
-
-    // Initialize Hugging Face inference
-    const hf = new HfInference(HUGGING_FACE_ACCESS_TOKEN);
+    console.log('Calling Hugging Face Inference API with messages count:', messages.length);
 
     // Convert messages to a single prompt for Hugging Face
     const conversationPrompt = messages.map(msg => {
@@ -190,20 +187,38 @@ LANGUE: Français uniquement.`;
 
     const fullPrompt = `${conversationPrompt}\n\nAssistant:`;
 
-    // Call Hugging Face text generation
-    const response = await hf.textGeneration({
-      model: 'microsoft/DialoGPT-large',
-      inputs: fullPrompt,
-      parameters: {
-        max_new_tokens: 1000,
-        temperature: 0.7,
-        top_p: 0.9,
-        do_sample: true,
-        return_full_text: false
-      }
+    // Direct call to Hugging Face Inference API (serverless)
+    const hfRes = await fetch('https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HUGGING_FACE_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: fullPrompt,
+        parameters: {
+          max_new_tokens: 400,
+          temperature: 0.7,
+          top_p: 0.9,
+          return_full_text: false
+        }
+      }),
     });
 
-    const assistantMessage = response.generated_text || "Je suis désolé, je n'ai pas pu traiter votre demande. Pouvez-vous reformuler votre question?";
+    if (!hfRes.ok) {
+      const errText = await hfRes.text();
+      console.error('Hugging Face API error:', hfRes.status, errText);
+      throw new Error(`Hugging Face API error: ${hfRes.status}`);
+    }
+
+    const hfJson = await hfRes.json();
+    const assistantMessage = Array.isArray(hfJson)
+      ? (hfJson[0]?.generated_text?.trim() ?? '')
+      : (hfJson.generated_text?.trim() ?? '');
+
+    if (!assistantMessage) {
+      throw new Error('Empty response from Hugging Face');
+    }
 
     console.log('Received response from Hugging Face');
 
