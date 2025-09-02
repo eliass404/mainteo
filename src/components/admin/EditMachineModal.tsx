@@ -249,12 +249,12 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
 
           <div className="space-y-2">
             <Label htmlFor="technician">Technicien assigné</Label>
-            <Select value={formData.assigned_technician_id} onValueChange={(value) => setFormData(prev => ({...prev, assigned_technician_id: value}))}>
+            <Select value={formData.assigned_technician_id || "none"} onValueChange={(value) => setFormData(prev => ({...prev, assigned_technician_id: value === "none" ? "" : value}))}>
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un technicien" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucun technicien</SelectItem>
+                <SelectItem value="none">Aucun technicien</SelectItem>
                 {technicians.map((tech) => (
                   <SelectItem key={tech.user_id} value={tech.user_id}>
                     {tech.username}
