@@ -92,11 +92,14 @@ export const Profile = ({ user, onNavigate }: ProfileProps) => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        {onNavigate && (
-          <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          onClick={() => (onNavigate ? onNavigate('dashboard') : window.history.back())}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Retour
+        </Button>
         <h1 className="text-3xl font-bold text-foreground">Mon Profil</h1>
       </div>
       

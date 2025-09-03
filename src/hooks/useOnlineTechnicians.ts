@@ -28,38 +28,64 @@ export const useOnlineTechnicians = () => {
       }
     };
 
-    // Get online technicians (those who have sent messages in last 5 minutes)
     const getOnlineTechnicians = async () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
-      const { data: recentActivity } = await supabase
+      const { data: recentActivity, error } = await supabase
         .from('chat_messages')
-        .select(`
-          technician_id,
-          created_at,
-          profiles!inner(username, role)
-        `)
-        .gte('created_at', fiveMinutesAgo)
-        .eq('profiles.role', 'technicien');
+        .select('technician_id, created_at')
+        .gte('created_at', fiveMinutesAgo);
 
-      if (recentActivity) {
-        // Group by technician and get the latest activity
-        const technicianMap = new Map();
-        recentActivity.forEach((activity: any) => {
-          const existing = technicianMap.get(activity.technician_id);
-          if (!existing || new Date(activity.created_at) > new Date(existing.last_seen)) {
-            technicianMap.set(activity.technician_id, {
-              user_id: activity.technician_id,
-              username: activity.profiles.username,
-              last_seen: activity.created_at
-            });
-          }
-        });
-
-        const onlineTechs = Array.from(technicianMap.values());
-        setOnlineTechnicians(onlineTechs);
-        setOnlineCount(onlineTechs.length);
+      if (error) {
+        console.error('Error fetching recent activity:', error);
+        setOnlineTechnicians([]);
+        setOnlineCount(0);
+        return;
       }
+
+      if (!recentActivity || recentActivity.length === 0) {
+        setOnlineTechnicians([]);
+        setOnlineCount(0);
+        return;
+      }
+
+      // Group by technician and get the latest activity
+      const technicianMap = new Map<string, string>();
+      recentActivity.forEach((activity: any) => {
+        const prev = technicianMap.get(activity.technician_id);
+        if (!prev || new Date(activity.created_at) > new Date(prev)) {
+          technicianMap.set(activity.technician_id, activity.created_at);
+        }
+      });
+
+      const userIds = Array.from(technicianMap.keys());
+      if (userIds.length === 0) {
+        setOnlineTechnicians([]);
+        setOnlineCount(0);
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username, role')
+        .in('user_id', userIds)
+        .eq('role', 'technicien');
+
+      if (profilesError || !profilesData) {
+        console.error('Error fetching profiles:', profilesError);
+        setOnlineTechnicians([]);
+        setOnlineCount(0);
+        return;
+      }
+
+      const onlineTechs = profilesData.map((p) => ({
+        user_id: p.user_id as string,
+        username: p.username as string,
+        last_seen: technicianMap.get(p.user_id as string) as string,
+      }));
+
+      setOnlineTechnicians(onlineTechs);
+      setOnlineCount(onlineTechs.length);
     };
 
     // Initial tracking

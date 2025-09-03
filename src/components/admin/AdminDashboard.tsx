@@ -253,11 +253,11 @@ export const AdminDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Techniciens en ligne</p>
+                <p className="text-sm font-medium text-muted-foreground">Interventions en cours</p>
                 <p className="text-3xl font-bold text-foreground">
                   {onlineCount}
                 </p>
-                <p className="text-xs text-muted-foreground">utilisant le chatbot</p>
+                <p className="text-xs text-muted-foreground">techniciens utilisant le chatbot</p>
               </div>
               <Clock className="w-8 h-8 text-warning" />
             </div>
