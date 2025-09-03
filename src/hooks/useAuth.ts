@@ -68,7 +68,7 @@ export const useAuth = () => {
         // Create a profile using the role from signup metadata
         const { data: created, error: insertError } = await supabase
           .from('profiles')
-          .insert({ user_id: userId, username: userUsername, role: userRole })
+          .insert({ user_id: userId, username: userUsername, role: userRole, email: email })
           .select('*')
           .single();
         if (insertError) {
@@ -77,6 +77,14 @@ export const useAuth = () => {
           setProfile(created as Profile);
         }
       } else {
+        // Update email if missing in profile
+        if (data && !data.email && email) {
+          await supabase
+            .from('profiles')
+            .update({ email: email })
+            .eq('user_id', userId);
+          data.email = email;
+        }
         setProfile(data as Profile);
       }
     } catch (err) {

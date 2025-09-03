@@ -1,12 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { HelpCircle, CreditCard, Mail, Phone } from "lucide-react";
+import { HelpCircle, CreditCard, Mail, Phone, ArrowLeft } from "lucide-react";
 
-export const Settings = () => {
+interface SettingsProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const Settings = ({ onNavigate }: SettingsProps) => {
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">Paramètres</h1>
+      <div className="flex items-center gap-4">
+        {onNavigate && (
+          <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
+        <h1 className="text-3xl font-bold text-foreground">Paramètres</h1>
+      </div>
       
       {/* Contact Support */}
       <Card>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Calendar } from "lucide-react";
+import { User, Mail, Calendar, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -16,9 +16,10 @@ interface ProfileProps {
     user_id: string;
     email?: string;
   };
+  onNavigate?: (page: string) => void;
 }
 
-export const Profile = ({ user }: ProfileProps) => {
+export const Profile = ({ user, onNavigate }: ProfileProps) => {
   const [profile, setProfile] = useState({
     username: user.username,
     email: user.email || "",
@@ -90,7 +91,14 @@ export const Profile = ({ user }: ProfileProps) => {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">Mon Profil</h1>
+      <div className="flex items-center gap-4">
+        {onNavigate && (
+          <Button variant="ghost" size="icon" onClick={() => onNavigate('dashboard')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
+        <h1 className="text-3xl font-bold text-foreground">Mon Profil</h1>
+      </div>
       
       {/* Profile Info */}
       <Card>

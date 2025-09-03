@@ -37,9 +37,9 @@ const Index = () => {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'settings':
-        return <Settings />;
+        return <Settings onNavigate={handleNavigate} />;
       case 'profile':
-        return <Profile user={profile} />;
+        return <Profile user={profile} onNavigate={handleNavigate} />;
       case 'dashboard':
       default:
         return profile.role === 'admin' ? <AdminDashboard /> : <TechnicianDashboard />;

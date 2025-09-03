@@ -33,11 +33,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 import { useState, useEffect } from "react";
 import { useMachines } from "@/hooks/useMachines";
+import { useOnlineTechnicians } from "@/hooks/useOnlineTechnicians";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const AdminDashboard = () => {
   const { machines, loading: machinesLoading, fetchMachines } = useMachines();
+  const { onlineCount } = useOnlineTechnicians();
   const { toast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -49,6 +52,9 @@ export const AdminDashboard = () => {
   const [loadingStats, setLoadingStats] = useState(true);
   const [editingMachine, setEditingMachine] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
 
   useEffect(() => {
     loadUsers();
@@ -247,10 +253,11 @@ export const AdminDashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Interventions en cours</p>
+                <p className="text-sm font-medium text-muted-foreground">Techniciens en ligne</p>
                 <p className="text-3xl font-bold text-foreground">
-                  {loadingStats ? "..." : stats.activeInterventions}
+                  {onlineCount}
                 </p>
+                <p className="text-xs text-muted-foreground">utilisant le chatbot</p>
               </div>
               <Clock className="w-8 h-8 text-warning" />
             </div>
@@ -283,12 +290,35 @@ export const AdminDashboard = () => {
           <div className="flex gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Rechercher une machine..." className="pl-10" />
+              <Input 
+                placeholder="Rechercher une machine..." 
+                className="pl-10" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <Button variant="outline" onClick={() => console.log('Filtres clicked')}>
-              <Filter className="w-4 h-4 mr-2" />
-              Filtres
-            </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="operational">Opérationnel</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="alert">Alerte</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Département" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous</SelectItem>
+                {Array.from(new Set(machines.map(m => m.department))).map(dept => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
@@ -323,7 +353,17 @@ export const AdminDashboard = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                machines.map((machine) => (
+                machines
+                  .filter(machine => {
+                    const matchesSearch = machine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        machine.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        machine.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        machine.department.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesStatus = statusFilter === "all" || machine.status === statusFilter;
+                    const matchesDepartment = departmentFilter === "all" || machine.department === departmentFilter;
+                    return matchesSearch && matchesStatus && matchesDepartment;
+                  })
+                  .map((machine) => (
                   <TableRow key={machine.id}>
                     <TableCell className="font-medium">{machine.id}</TableCell>
                     <TableCell>{machine.name}</TableCell>
