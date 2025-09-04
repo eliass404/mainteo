@@ -44,7 +44,7 @@ export const TechnicianDashboard = () => {
     time_spent: "",
     status: "en-cours"
   });
-
+  const [activeTab, setActiveTab] = useState('chat');
   useEffect(() => {
     if (profile) {
       loadUserMachines();
@@ -253,7 +253,7 @@ export const TechnicianDashboard = () => {
                 <p className="text-muted-foreground">{selectedMachineData?.description}</p>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="chat" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="chat" className="flex items-center gap-2">
                       <MessageCircle className="w-4 h-4" />
@@ -265,7 +265,7 @@ export const TechnicianDashboard = () => {
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="chat" className="space-y-4">
+                  <TabsContent value="chat" forceMount className="space-y-4">
                     <div className="border rounded-lg h-96 overflow-y-auto p-4 space-y-4 bg-muted/20">
                       {chatMessages.map((msg, index) => (
                         <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -324,7 +324,7 @@ export const TechnicianDashboard = () => {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="rapport" className="space-y-4">
+                  <TabsContent value="rapport" forceMount className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="description">Description du problème</Label>
