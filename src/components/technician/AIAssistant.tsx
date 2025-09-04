@@ -15,7 +15,7 @@ import {
   MapPin,
   FileCheck
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMachines } from "@/hooks/useMachines";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -31,6 +31,7 @@ export const AIAssistant = () => {
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState("");
   const [loadingMachines, setLoadingMachines] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load user machines and restore state from localStorage
   useEffect(() => {
@@ -61,6 +62,11 @@ export const AIAssistant = () => {
       }
     }
   }, [selectedMachine, userMachines, initializeChat]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isLoading]);
 
   const loadUserMachines = async () => {
     try {
@@ -295,6 +301,9 @@ export const AIAssistant = () => {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Auto-scroll reference */}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Input Area */}
