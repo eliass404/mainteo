@@ -219,14 +219,16 @@ export const AIAssistant = () => {
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0">
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-background to-muted/20">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-background to-muted/20">
                   {chatMessages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-4">
-                        <Bot className="w-8 h-8 text-white" />
+                    <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+                      <div className="w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-6 shadow-lg">
+                        <Bot className="w-10 h-10 text-white" />
                       </div>
-                      <h3 className="text-lg font-semibold mb-2">Bonjour ! Je suis MAIA</h3>
-                      <p className="text-muted-foreground max-w-md">
+                      <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                        Bonjour ! Je suis MAIA
+                      </h3>
+                      <p className="text-muted-foreground max-w-md leading-relaxed">
                         Votre assistant IA pour la maintenance. Décrivez votre problème ou posez-moi des questions sur la machine {selectedMachineData?.name}.
                       </p>
                     </div>
@@ -234,29 +236,33 @@ export const AIAssistant = () => {
                     chatMessages.map((message, index) => (
                       <div
                         key={index}
-                        className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex gap-4 animate-fade-in ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        <div className={`flex gap-4 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-md transition-transform hover:scale-105 ${
                             message.role === 'user' 
                               ? 'bg-gradient-primary text-white' 
-                              : 'bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground'
+                              : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
                           }`}>
                             {message.role === 'user' ? (
-                              <UserIcon className="w-4 h-4" />
+                              <UserIcon className="w-5 h-5" />
                             ) : (
-                              <Bot className="w-4 h-4" />
+                              <Bot className="w-5 h-5" />
                             )}
                           </div>
-                          <div className={`px-4 py-3 rounded-2xl shadow-sm ${
-                            message.role === 'user' 
-                              ? 'bg-gradient-primary text-primary-foreground rounded-br-md' 
-                              : 'bg-card border border-border/50 rounded-bl-md'
-                          }`}>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                          <div className={`group relative ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                            <div className={`inline-block px-6 py-4 rounded-3xl shadow-sm transition-all duration-200 hover:shadow-md ${
+                              message.role === 'user' 
+                                ? 'bg-gradient-primary text-primary-foreground rounded-br-lg max-w-xs' 
+                                : 'bg-white dark:bg-card border border-border/20 rounded-bl-lg'
+                            }`}>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                {message.content}
+                              </p>
+                            </div>
                             {message.created_at && (
-                              <p className={`text-xs mt-2 ${
-                                message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                              <p className={`text-xs mt-2 opacity-70 transition-opacity group-hover:opacity-100 ${
+                                message.role === 'user' ? 'text-right' : 'text-left'
                               }`}>
                                 {new Date(message.created_at).toLocaleTimeString('fr-FR', { 
                                   hour: '2-digit', 
@@ -271,15 +277,15 @@ export const AIAssistant = () => {
                   )}
                   
                   {isLoading && (
-                    <div className="flex gap-3 justify-start">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center">
-                        <Bot className="w-4 h-4" />
+                    <div className="flex gap-4 justify-start animate-fade-in">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                        <Bot className="w-5 h-5 text-white" />
                       </div>
-                      <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-bl-md">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="bg-white dark:bg-card border border-border/20 px-6 py-4 rounded-3xl rounded-bl-lg shadow-sm">
+                        <div className="flex space-x-2">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       </div>
                     </div>
