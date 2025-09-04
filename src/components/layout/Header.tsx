@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Building2, LogOut, Settings, User, Bell } from "lucide-react";
+import { Building2, LogOut, Settings, User, Bell, Bot, FileText } from "lucide-react";
 
 interface HeaderProps {
   user: {
@@ -60,11 +60,19 @@ export const Header = ({ user, onLogout, onNavigate }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-card border border-border">
-              <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('dashboard')}>
-                <Building2 className="w-4 h-4 mr-2" />
-                Tableau de bord
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {user.role === 'technicien' && (
+                <>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('ai-assistant')}>
+                    <Bot className="w-4 h-4 mr-2" />
+                    Assistant IA
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('intervention-report')}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Rapport d'intervention
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('profile')}>
                 <User className="w-4 h-4 mr-2" />
                 Profil

@@ -2,14 +2,18 @@ import { useState } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Header } from '@/components/layout/Header';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { TechnicianDashboard } from '@/components/technician/TechnicianDashboard';
+import { AIAssistant } from '@/components/technician/AIAssistant';
+import { InterventionReport } from '@/components/technician/InterventionReport';
 import { Settings } from './Settings';
 import { Profile } from './Profile';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() => {
+    // Set default page based on user role
+    return profile?.role === 'admin' ? 'dashboard' : 'ai-assistant';
+  });
   const [dashboardKey, setDashboardKey] = useState(0);
 
   if (loading) {
@@ -45,14 +49,23 @@ const Index = () => {
         return <Settings onNavigate={handleNavigate} />;
       case 'profile':
         return <Profile user={profile} onNavigate={handleNavigate} />;
+      case 'ai-assistant':
+        return <AIAssistant />;
+      case 'intervention-report':
+        return <InterventionReport />;
       case 'dashboard':
       default:
-        // Utiliser une clé pour maintenir l'instance du component même quand on navigue
-        return (
-          <div key={dashboardKey}>
-            {profile.role === 'admin' ? <AdminDashboard /> : <TechnicianDashboard />}
-          </div>
-        );
+        // Only admin has dashboard access
+        if (profile.role === 'admin') {
+          return (
+            <div key={dashboardKey}>
+              <AdminDashboard />
+            </div>
+          );
+        } else {
+          // Redirect technicians to AI Assistant
+          return <AIAssistant />;
+        }
     }
   };
 
