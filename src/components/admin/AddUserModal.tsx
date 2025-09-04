@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Copy, RefreshCw, Plus, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { validateUsername, validateEmail, validatePassword, sanitizeInput } from "@/lib/validation";
 
 const departments = [
   "Production",
@@ -46,18 +47,41 @@ export const AddUserModal = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Sanitize inputs
+    const sanitizedUsername = sanitizeInput(formData.username);
+    const sanitizedEmail = sanitizeInput(formData.email);
+    const sanitizedPhone = sanitizeInput(formData.phone);
+    const sanitizedPassword = formData.password.trim();
+    
     try {
-      if (!formData.username || !formData.email || !formData.password || !formData.role) {
+      if (!sanitizedUsername || !sanitizedEmail || !sanitizedPassword || !formData.role) {
         throw new Error('Veuillez remplir les champs requis');
+      }
+
+      // Validate inputs
+      const usernameValidation = validateUsername(sanitizedUsername);
+      if (!usernameValidation.isValid) {
+        throw new Error(usernameValidation.error);
+      }
+
+      const emailValidation = validateEmail(sanitizedEmail);
+      if (!emailValidation.isValid) {
+        throw new Error(emailValidation.error);
+      }
+
+      const passwordValidation = validatePassword(sanitizedPassword);
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.error);
       }
 
       const { data, error } = await supabase.functions.invoke('admin-create-user', {
         body: {
-          email: formData.email,
-          password: formData.password,
-          username: formData.username,
+          email: sanitizedEmail,
+          password: sanitizedPassword,
+          username: sanitizedUsername,
           role: formData.role,
-          phone: formData.phone,
+          phone: sanitizedPhone,
           department: formData.department,
         }
       });

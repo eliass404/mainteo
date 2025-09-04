@@ -9,6 +9,7 @@ import { Wrench, Shield, User, Mail, Lock, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { validateUsername, validateEmail, validatePassword, sanitizeInput } from "@/lib/validation";
 
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -21,13 +22,24 @@ export const LoginForm = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPassword = password.trim();
+    
+    if (!sanitizedEmail || !sanitizedPassword) return;
 
     setIsLoading(true);
     try {
-      let signinEmail = email.trim();
+      let signinEmail = sanitizedEmail;
       // Si l'utilisateur saisit un nom d'utilisateur, on récupère l'email associé
       if (!signinEmail.includes('@')) {
+        // Validate username format
+        const usernameValidation = validateUsername(signinEmail);
+        if (!usernameValidation.isValid) {
+          throw new Error(usernameValidation.error);
+        }
+        
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('email')
@@ -38,9 +50,15 @@ export const LoginForm = () => {
           throw new Error("Nom d'utilisateur introuvable ou email manquant");
         }
         signinEmail = profile.email;
+      } else {
+        // Validate email format
+        const emailValidation = validateEmail(signinEmail);
+        if (!emailValidation.isValid) {
+          throw new Error(emailValidation.error);
+        }
       }
 
-      const { error } = await signIn(signinEmail, password);
+      const { error } = await signIn(signinEmail, sanitizedPassword);
       if (error) {
         throw error;
       }
@@ -57,7 +75,44 @@ export const LoginForm = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !username.trim()) return;
+    
+    // Sanitize and validate inputs
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedUsername = sanitizeInput(username);
+    const sanitizedPassword = password.trim();
+    
+    if (!sanitizedEmail || !sanitizedPassword || !sanitizedUsername) return;
+
+    // Validate inputs
+    const emailValidation = validateEmail(sanitizedEmail);
+    if (!emailValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: emailValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const usernameValidation = validateUsername(sanitizedUsername);
+    if (!usernameValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: usernameValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const passwordValidation = validatePassword(sanitizedPassword);
+    if (!passwordValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: passwordValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -65,13 +120,13 @@ export const LoginForm = () => {
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
-        .eq('username', username.trim())
+        .eq('username', sanitizedUsername)
         .maybeSingle();
       if (existing) {
         throw new Error("Ce nom d'utilisateur est déjà pris");
       }
 
-      const { error } = await signUp(email, password, username, role);
+      const { error } = await signUp(sanitizedEmail, sanitizedPassword, sanitizedUsername, role);
       if (error) throw error;
 
       toast({

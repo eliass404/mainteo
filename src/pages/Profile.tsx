@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Mail, Calendar, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { validateUsername, validateEmail, sanitizeInput } from "@/lib/validation";
 
 interface ProfileProps {
   user: {
@@ -54,14 +55,42 @@ export const Profile = ({ user, onNavigate }: ProfileProps) => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Sanitize and validate inputs
+    const sanitizedUsername = sanitizeInput(profile.username);
+    const sanitizedEmail = sanitizeInput(profile.email);
+
+    // Validate inputs
+    const usernameValidation = validateUsername(sanitizedUsername);
+    if (!usernameValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: usernameValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (sanitizedEmail) {
+      const emailValidation = validateEmail(sanitizedEmail);
+      if (!emailValidation.isValid) {
+        toast({
+          title: "Erreur de validation",
+          description: emailValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          username: profile.username,
-          email: profile.email
+          username: sanitizedUsername,
+          email: sanitizedEmail || null
         })
         .eq('user_id', user.user_id);
 
