@@ -313,46 +313,6 @@ export const AIAssistant = () => {
             </Card>
           </div>
 
-          {/* Machine Info Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Cog className="w-4 h-4" />
-                  Informations machine
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Statut</span>
-                    </div>
-                    {selectedMachineData?.status && getStatusBadge(selectedMachineData.status)}
-                  </div>
-                  
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Emplacement</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{selectedMachineData?.location}</span>
-                  </div>
-                  
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <FileCheck className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Documentation</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {selectedMachineData?.documentation_url ? 'Disponible' : 'Non disponible'}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       ) : (
         <Card className="h-[500px] flex items-center justify-center">
