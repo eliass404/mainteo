@@ -70,8 +70,8 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingUsername) {
-      return new Response(JSON.stringify({ error: 'Nom d\'utilisateur déjà utilisé' }), {
-        status: 409,
+      return new Response(JSON.stringify({ ok: false, error: "Nom d'utilisateur déjà utilisé" }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
