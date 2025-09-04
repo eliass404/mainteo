@@ -60,6 +60,11 @@ export const Header = ({ user, onLogout, onNavigate }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-card border border-border">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('dashboard')}>
+                <Building2 className="w-4 h-4 mr-2" />
+                Tableau de bord
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigate('profile')}>
                 <User className="w-4 h-4 mr-2" />
                 Profil

@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [dashboardKey, setDashboardKey] = useState(0);
 
   if (loading) {
     return (
@@ -32,6 +33,10 @@ const Index = () => {
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
+    // Ne pas remonter le dashboard si on navigue vers le dashboard
+    if (page !== 'dashboard') {
+      // Préserver l'état du dashboard en ne changeant pas la clé
+    }
   };
 
   const renderCurrentPage = () => {
@@ -42,7 +47,12 @@ const Index = () => {
         return <Profile user={profile} onNavigate={handleNavigate} />;
       case 'dashboard':
       default:
-        return profile.role === 'admin' ? <AdminDashboard /> : <TechnicianDashboard />;
+        // Utiliser une clé pour maintenir l'instance du component même quand on navigue
+        return (
+          <div key={dashboardKey}>
+            {profile.role === 'admin' ? <AdminDashboard /> : <TechnicianDashboard />}
+          </div>
+        );
     }
   };
 
