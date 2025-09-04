@@ -219,7 +219,7 @@ export const AIAssistant = () => {
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0">
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-background to-muted/20">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {chatMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
                       <div className="w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-6 shadow-lg">
@@ -233,59 +233,64 @@ export const AIAssistant = () => {
                       </p>
                     </div>
                   ) : (
-                    chatMessages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`flex gap-4 animate-fade-in ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`flex gap-4 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-md transition-transform hover:scale-105 ${
+                    <div className="space-y-4">
+                      {chatMessages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`flex items-start gap-3 animate-fade-in ${
+                            message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                          }`}
+                        >
+                          {/* Avatar */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
                             message.role === 'user' 
                               ? 'bg-gradient-primary text-white' 
                               : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
                           }`}>
                             {message.role === 'user' ? (
-                              <UserIcon className="w-5 h-5" />
+                              <UserIcon className="w-4 h-4" />
                             ) : (
-                              <Bot className="w-5 h-5" />
+                              <Bot className="w-4 h-4" />
                             )}
                           </div>
-                          <div className={`group relative ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                            <div className={`inline-block px-6 py-4 rounded-3xl shadow-sm transition-all duration-200 hover:shadow-md ${
+                          
+                          {/* Message Bubble */}
+                          <div className={`flex flex-col max-w-[75%] ${
+                            message.role === 'user' ? 'items-end' : 'items-start'
+                          }`}>
+                            <div className={`px-4 py-3 rounded-2xl shadow-sm ${
                               message.role === 'user' 
-                                ? 'bg-gradient-primary text-primary-foreground rounded-br-lg max-w-xs' 
-                                : 'bg-white dark:bg-card border border-border/20 rounded-bl-lg'
+                                ? 'bg-gradient-primary text-primary-foreground rounded-tr-sm' 
+                                : 'bg-white dark:bg-card border text-foreground rounded-tl-sm'
                             }`}>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
                                 {message.content}
                               </p>
                             </div>
                             {message.created_at && (
-                              <p className={`text-xs mt-2 opacity-70 transition-opacity group-hover:opacity-100 ${
-                                message.role === 'user' ? 'text-right' : 'text-left'
-                              }`}>
+                              <span className="text-xs text-muted-foreground mt-1 px-1">
                                 {new Date(message.created_at).toLocaleTimeString('fr-FR', { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
                                 })}
-                              </p>
+                              </span>
                             )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                   
                   {isLoading && (
-                    <div className="flex gap-4 justify-start animate-fade-in">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                        <Bot className="w-5 h-5 text-white" />
+                    <div className="flex items-start gap-3 animate-fade-in">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                        <Bot className="w-4 h-4 text-white" />
                       </div>
-                      <div className="bg-white dark:bg-card border border-border/20 px-6 py-4 rounded-3xl rounded-bl-lg shadow-sm">
-                        <div className="flex space-x-2">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="bg-white dark:bg-card border px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       </div>
                     </div>
