@@ -166,7 +166,7 @@ export const AIAssistant = () => {
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wide">Statut</span>
-                      <div className="mt-1">{getStatusBadge(selectedMachineData.status)}</div>
+                      <div className="mt-1">{selectedMachineData?.status && getStatusBadge(selectedMachineData.status)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ export const AIAssistant = () => {
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wide">Emplacement</span>
-                      <p className="text-sm font-medium">{selectedMachineData.location}</p>
+                      <p className="text-sm font-medium">{selectedMachineData?.location}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export const AIAssistant = () => {
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wide">Documentation</span>
-                      <p className="text-sm font-medium">{selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}</p>
+                      <p className="text-sm font-medium">{selectedMachineData?.documentation_url ? 'Disponible' : 'Non disponible'}</p>
                     </div>
                   </div>
                 </div>
@@ -329,7 +329,7 @@ export const AIAssistant = () => {
                       <CheckCircle className="w-4 h-4 text-primary" />
                       <span className="text-sm font-medium">Statut</span>
                     </div>
-                    {getStatusBadge(selectedMachineData.status)}
+                    {selectedMachineData?.status && getStatusBadge(selectedMachineData.status)}
                   </div>
                   
                   <div className="p-3 bg-muted/50 rounded-lg">
@@ -337,7 +337,7 @@ export const AIAssistant = () => {
                       <MapPin className="w-4 h-4 text-primary" />
                       <span className="text-sm font-medium">Emplacement</span>
                     </div>
-                    <span className="text-sm text-muted-foreground">{selectedMachineData.location}</span>
+                    <span className="text-sm text-muted-foreground">{selectedMachineData?.location}</span>
                   </div>
                   
                   <div className="p-3 bg-muted/50 rounded-lg">
@@ -346,7 +346,7 @@ export const AIAssistant = () => {
                       <span className="text-sm font-medium">Documentation</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      {selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}
+                      {selectedMachineData?.documentation_url ? 'Disponible' : 'Non disponible'}
                     </span>
                   </div>
                 </div>
