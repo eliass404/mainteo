@@ -15,7 +15,7 @@ import {
   MapPin,
   FileCheck
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMachines } from "@/hooks/useMachines";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -31,7 +31,6 @@ export const AIAssistant = () => {
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState("");
   const [loadingMachines, setLoadingMachines] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load user machines and restore state from localStorage
   useEffect(() => {
@@ -62,11 +61,6 @@ export const AIAssistant = () => {
       }
     }
   }, [selectedMachine, userMachines, initializeChat]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isLoading]);
 
   const loadUserMachines = async () => {
     try {
@@ -202,51 +196,53 @@ export const AIAssistant = () => {
 
       {/* AI Chat Interface */}
       {selectedMachine ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="max-w-4xl mx-auto">
           {/* Chat Area */}
-          <div className="lg:col-span-3">
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-primary/10">
-                <CardTitle className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">MAIA Assistant</h3>
-                    <p className="text-sm text-muted-foreground font-normal">
-                      Assistant IA pour {selectedMachineData?.name}
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-primary/10">
+              <CardTitle className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">MAIA Assistant</h3>
+                  <p className="text-sm text-muted-foreground font-normal">
+                    Assistant IA pour {selectedMachineData?.name}
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-success/10 text-success rounded-full">
+                  <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium">En ligne</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col p-0">
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {chatMessages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+                    <div className="w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-6 shadow-lg">
+                      <Bot className="w-10 h-10 text-white" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                      Bonjour ! Je suis MAIA
+                    </h3>
+                    <p className="text-muted-foreground max-w-md leading-relaxed">
+                      Votre assistant IA pour la maintenance. Décrivez votre problème ou posez-moi des questions sur la machine {selectedMachineData?.name}.
                     </p>
                   </div>
-                  <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-success/10 text-success rounded-full">
-                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                    <span className="text-xs font-medium">En ligne</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-0">
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {chatMessages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
-                      <div className="w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-6 shadow-lg">
-                        <Bot className="w-10 h-10 text-white" />
-                      </div>
-                      <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                        Bonjour ! Je suis MAIA
-                      </h3>
-                      <p className="text-muted-foreground max-w-md leading-relaxed">
-                        Votre assistant IA pour la maintenance. Décrivez votre problème ou posez-moi des questions sur la machine {selectedMachineData?.name}.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {chatMessages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`flex items-start gap-3 animate-fade-in ${
-                            message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                          }`}
-                        >
+                ) : (
+                  <div className="space-y-4 w-full">
+                    {chatMessages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex w-full ${
+                          message.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        <div className={`flex items-start gap-3 max-w-[80%] ${
+                          message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                        }`}>
                           {/* Avatar */}
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
                             message.role === 'user' 
@@ -261,7 +257,7 @@ export const AIAssistant = () => {
                           </div>
                           
                           {/* Message Bubble */}
-                          <div className={`flex flex-col max-w-[75%] ${
+                          <div className={`flex flex-col ${
                             message.role === 'user' ? 'items-end' : 'items-start'
                           }`}>
                             <div className={`px-4 py-3 rounded-2xl shadow-sm ${
@@ -283,12 +279,14 @@ export const AIAssistant = () => {
                             )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {isLoading && (
-                    <div className="flex items-start gap-3 animate-fade-in">
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {isLoading && (
+                  <div className="flex justify-start mt-4">
+                    <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
                         <Bot className="w-4 h-4 text-white" />
                       </div>
@@ -300,39 +298,35 @@ export const AIAssistant = () => {
                         </div>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Auto-scroll reference */}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <div className="p-4 border-t bg-card/50 backdrop-blur-sm">
-                  <div className="flex gap-3">
-                    <div className="flex-1 relative">
-                      <Input
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Tapez votre message..."
-                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                        disabled={isLoading}
-                        className="pr-12 h-12 rounded-full border-2 focus:border-primary/50 transition-colors"
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleSendMessage} 
-                      disabled={!inputMessage.trim() || isLoading}
-                      size="icon"
-                      className="h-12 w-12 rounded-full bg-gradient-primary hover:opacity-90 transition-opacity"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                )}
+              </div>
 
+              {/* Input Area */}
+              <div className="p-4 border-t bg-card/50 backdrop-blur-sm">
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Tapez votre message..."
+                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                      disabled={isLoading}
+                      className="pr-12 h-12 rounded-full border-2 focus:border-primary/50 transition-colors"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSendMessage} 
+                    disabled={!inputMessage.trim() || isLoading}
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-gradient-primary hover:opacity-90 transition-opacity"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         <Card className="h-[500px] flex items-center justify-center">
