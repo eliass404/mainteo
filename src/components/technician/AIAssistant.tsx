@@ -158,21 +158,35 @@ export const AIAssistant = () => {
             </Select>
 
             {selectedMachineData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Statut:</span>
-                  {getStatusBadge(selectedMachineData.status)}
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Emplacement:</span>
-                  <span className="text-sm">{selectedMachineData.location}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Documentation:</span>
-                  <span className="text-sm">{selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}</span>
+              <div className="p-4 bg-gradient-to-r from-muted/30 to-muted/50 rounded-xl border border-border/50">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Statut</span>
+                      <div className="mt-1">{getStatusBadge(selectedMachineData.status)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Emplacement</span>
+                      <p className="text-sm font-medium">{selectedMachineData.location}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <FileCheck className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Documentation</span>
+                      <p className="text-sm font-medium">{selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -182,92 +196,175 @@ export const AIAssistant = () => {
 
       {/* AI Chat Interface */}
       {selectedMachine ? (
-        <Card className="h-[600px] flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Chat avec MAIA
-              <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                MAIA Ready
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto space-y-4 p-4 border rounded-lg bg-muted/50 mb-4">
-              {chatMessages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-secondary text-secondary-foreground'
-                    }`}>
-                      {message.role === 'user' ? (
-                        <UserIcon className="w-4 h-4" />
-                      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Chat Area */}
+          <div className="lg:col-span-3">
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-primary/10">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">MAIA Assistant</h3>
+                    <p className="text-sm text-muted-foreground font-normal">
+                      Assistant IA pour {selectedMachineData?.name}
+                    </p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-success/10 text-success rounded-full">
+                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium">En ligne</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col p-0">
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-background to-muted/20">
+                  {chatMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mb-4">
+                        <Bot className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Bonjour ! Je suis MAIA</h3>
+                      <p className="text-muted-foreground max-w-md">
+                        Votre assistant IA pour la maintenance. Décrivez votre problème ou posez-moi des questions sur la machine {selectedMachineData?.name}.
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            message.role === 'user' 
+                              ? 'bg-gradient-primary text-white' 
+                              : 'bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground'
+                          }`}>
+                            {message.role === 'user' ? (
+                              <UserIcon className="w-4 h-4" />
+                            ) : (
+                              <Bot className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                            message.role === 'user' 
+                              ? 'bg-gradient-primary text-primary-foreground rounded-br-md' 
+                              : 'bg-card border border-border/50 rounded-bl-md'
+                          }`}>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                            {message.created_at && (
+                              <p className={`text-xs mt-2 ${
+                                message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                              }`}>
+                                {new Date(message.created_at).toLocaleTimeString('fr-FR', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  
+                  {isLoading && (
+                    <div className="flex gap-3 justify-start">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center">
                         <Bot className="w-4 h-4" />
-                      )}
+                      </div>
+                      <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-bl-md">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                      </div>
                     </div>
-                    <div className={`p-3 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-card border'
-                    }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      {message.created_at && (
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                  <div className="bg-card border p-3 rounded-lg">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Input Area */}
-            <div className="flex gap-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Décrivez le problème ou posez une question à MAIA..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                disabled={isLoading}
-              />
-              <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading}>
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Input Area */}
+                <div className="p-4 border-t bg-card/50 backdrop-blur-sm">
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <Input
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Tapez votre message..."
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        disabled={isLoading}
+                        className="pr-12 h-12 rounded-full border-2 focus:border-primary/50 transition-colors"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!inputMessage.trim() || isLoading}
+                      size="icon"
+                      className="h-12 w-12 rounded-full bg-gradient-primary hover:opacity-90 transition-opacity"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Machine Info Sidebar */}
+          <div className="lg:col-span-1">
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Cog className="w-4 h-4" />
+                  Informations machine
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Statut</span>
+                    </div>
+                    {getStatusBadge(selectedMachineData.status)}
+                  </div>
+                  
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Emplacement</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{selectedMachineData.location}</span>
+                  </div>
+                  
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileCheck className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Documentation</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : (
-        <Card className="h-[400px] flex items-center justify-center">
-          <CardContent className="text-center">
-            <Bot className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+        <Card className="h-[500px] flex items-center justify-center">
+          <CardContent className="text-center max-w-md">
+            <div className="w-20 h-20 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Bot className="w-10 h-10 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold mb-3">
               Sélectionnez une machine
             </h3>
-            <p className="text-muted-foreground">
-              Choisissez une machine ci-dessus pour commencer à interagir avec MAIA
+            <p className="text-muted-foreground leading-relaxed">
+              Choisissez une machine ci-dessus pour commencer à interagir avec MAIA, votre assistant IA pour la maintenance industrielle.
             </p>
           </CardContent>
         </Card>
