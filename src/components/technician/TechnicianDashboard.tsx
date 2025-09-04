@@ -51,6 +51,29 @@ export const TechnicianDashboard = () => {
     }
   }, [profile]);
 
+  // Restore persisted UI state
+  useEffect(() => {
+    try {
+      const savedMachine = localStorage.getItem('selectedMachineId');
+      if (savedMachine) setSelectedMachine(savedMachine);
+      const savedTab = localStorage.getItem('technician.activeTab');
+      if (savedTab) setActiveTab(savedTab);
+    } catch (_) {}
+  }, []);
+
+  // Persist UI state
+  useEffect(() => {
+    try {
+      localStorage.setItem('technician.activeTab', activeTab);
+    } catch (_) {}
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      if (selectedMachine) localStorage.setItem('selectedMachineId', selectedMachine);
+    } catch (_) {}
+  }, [selectedMachine]);
+
   const loadUserMachines = async () => {
     if (!profile) return;
     
@@ -70,6 +93,15 @@ export const TechnicianDashboard = () => {
     }
   };
 
+  // Initialize chat when we have both selected machine and machine data
+  useEffect(() => {
+    if (selectedMachine && userMachines.length > 0) {
+      const machine = userMachines.find(m => m.id === selectedMachine);
+      if (machine) {
+        initializeChat(selectedMachine, machine.name);
+      }
+    }
+  }, [selectedMachine, userMachines]);
   const handleMachineSelect = async (machineId: string) => {
     setSelectedMachine(machineId);
     const machine = userMachines.find(m => m.id === machineId);
@@ -312,7 +344,7 @@ export const TechnicianDashboard = () => {
                         placeholder="Décrivez le problème ou posez une question à MAIA..."
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                         disabled={isLoading}
                       />
                       <Button 

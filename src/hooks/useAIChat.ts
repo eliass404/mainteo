@@ -11,6 +11,7 @@ interface ChatMessage {
 export const useAIChat = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentMachineId, setCurrentMachineId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadChatHistory = async (machineId: string) => {
@@ -26,7 +27,9 @@ export const useAIChat = () => {
         return;
       }
 
-      setChatMessages(data as ChatMessage[] || []);
+      const msgs = (data as ChatMessage[]) || [];
+      setChatMessages(msgs);
+      try { localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs)); } catch (_) {}
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
@@ -39,7 +42,14 @@ export const useAIChat = () => {
     
     // Add user message to UI immediately
     const userMessage: ChatMessage = { role: 'user', content: message };
-    setChatMessages(prev => [...prev, userMessage]);
+    setChatMessages(prev => {
+      const updated = [...prev, userMessage];
+      try {
+        const key = `aiChat.messages.${currentMachineId || machineId}`;
+        localStorage.setItem(key, JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
@@ -55,12 +65,20 @@ export const useAIChat = () => {
         role: 'assistant', 
         content: data.message || data.fallbackMessage 
       };
-      setChatMessages(prev => [...prev, assistantMessage]);
+      setChatMessages(prev => {
+        const updated = [...prev, assistantMessage];
+        try {
+          const key = `aiChat.messages.${currentMachineId || machineId}`;
+          localStorage.setItem(key, JSON.stringify(updated));
+        } catch (_) {}
+        return updated;
+      });
 
       if (data.machineInfo) {
         console.log('Machine info:', data.machineInfo);
       }
 
+      // persist after assistant response is added above
     } catch (error) {
       console.error('Error sending message:', error);
       
@@ -69,7 +87,14 @@ export const useAIChat = () => {
         role: 'assistant',
         content: "Désolé, je rencontre des difficultés techniques. Veuillez réessayer."
       };
-      setChatMessages(prev => [...prev, errorMessage]);
+      setChatMessages(prev => {
+        const updated = [...prev, errorMessage];
+        try {
+          const key = `aiChat.messages.${currentMachineId || machineId}`;
+          localStorage.setItem(key, JSON.stringify(updated));
+        } catch (_) {}
+        return updated;
+      });
 
       toast({
         title: "Erreur",
@@ -83,10 +108,25 @@ export const useAIChat = () => {
 
   const clearChat = () => {
     setChatMessages([]);
+    try {
+      if (currentMachineId) localStorage.removeItem(`aiChat.messages.${currentMachineId}`);
+    } catch (_) {}
   };
 
   const initializeChat = async (machineId: string, machineName: string) => {
     setIsLoading(true);
+    setCurrentMachineId(machineId);
+
+    // Try local cache first
+    try {
+      const saved = localStorage.getItem(`aiChat.messages.${machineId}`);
+      if (saved) {
+        setChatMessages(JSON.parse(saved));
+        setIsLoading(false);
+        return;
+      }
+    } catch (_) {}
+
     setChatMessages([]);
 
     // Add loading message
