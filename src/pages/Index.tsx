@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Header } from '@/components/layout/Header';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
@@ -10,11 +10,20 @@ import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
-  const [currentPage, setCurrentPage] = useState(() => {
-    // Set default page based on user role
-    return profile?.role === 'admin' ? 'dashboard' : 'ai-assistant';
-  });
+  const [currentPage, setCurrentPage] = useState('dashboard');
   const [dashboardKey, setDashboardKey] = useState(0);
+
+  // Update current page based on user role when profile loads
+  useEffect(() => {
+    if (profile) {
+      console.log('Profile loaded:', profile); // Debug log
+      if (profile.role === 'admin') {
+        setCurrentPage('dashboard');
+      } else {
+        setCurrentPage('ai-assistant');
+      }
+    }
+  }, [profile]);
 
   if (loading) {
     return (
