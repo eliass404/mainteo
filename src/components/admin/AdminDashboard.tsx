@@ -71,11 +71,14 @@ export const AdminDashboard = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         throw error;
       }
+
+      console.log('Loaded users:', data); // Debug log
 
       // Get machine counts for technicians
       const usersWithCounts = await Promise.all(
@@ -92,6 +95,7 @@ export const AdminDashboard = () => {
         })
       );
 
+      console.log('Users with machine counts:', usersWithCounts); // Debug log
       setUsers(usersWithCounts);
     } catch (error) {
       console.error('Error loading users:', error);
