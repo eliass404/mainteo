@@ -15,9 +15,9 @@ serve(async (req) => {
   }
 
   try {
-    const HUGGING_FACE_ACCESS_TOKEN = Deno.env.get('HUGGING_FACE_ACCESS_TOKEN');
-    if (!HUGGING_FACE_ACCESS_TOKEN) {
-      throw new Error('HUGGING_FACE_ACCESS_TOKEN is not set');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not set');
     }
 
     const supabaseClient = createClient(
@@ -175,52 +175,37 @@ LANGUE: Français uniquement.`;
       { role: 'user', content: message }
     ];
 
-    console.log('Calling Hugging Face Inference API with messages count:', messages.length);
+    console.log('Calling OpenAI API with messages count:', messages.length);
 
-    // Convert messages to a single prompt for Hugging Face
-    const conversationPrompt = messages.map(msg => {
-      if (msg.role === 'system') return `System: ${msg.content}`;
-      if (msg.role === 'user') return `User: ${msg.content}`;
-      if (msg.role === 'assistant') return `Assistant: ${msg.content}`;
-      return msg.content;
-    }).join('\n\n');
-
-    const fullPrompt = `${conversationPrompt}\n\nAssistant:`;
-
-    // Direct call to Hugging Face Inference API (serverless)
-    const hfRes = await fetch('https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta', {
+    // Call OpenAI API
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${HUGGING_FACE_ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        inputs: fullPrompt,
-        parameters: {
-          max_new_tokens: 400,
-          temperature: 0.7,
-          top_p: 0.9,
-          return_full_text: false
-        }
+        model: 'gpt-4o-mini',
+        messages: messages,
+        max_tokens: 500,
+        temperature: 0.7,
       }),
     });
 
-    if (!hfRes.ok) {
-      const errText = await hfRes.text();
-      console.error('Hugging Face API error:', hfRes.status, errText);
-      throw new Error(`Hugging Face API error: ${hfRes.status}`);
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text();
+      console.error('OpenAI API error:', openaiRes.status, errText);
+      throw new Error(`OpenAI API error: ${openaiRes.status}`);
     }
 
-    const hfJson = await hfRes.json();
-    const assistantMessage = Array.isArray(hfJson)
-      ? (hfJson[0]?.generated_text?.trim() ?? '')
-      : (hfJson.generated_text?.trim() ?? '');
+    const openaiJson = await openaiRes.json();
+    const assistantMessage = openaiJson.choices[0]?.message?.content?.trim() ?? '';
 
     if (!assistantMessage) {
-      throw new Error('Empty response from Hugging Face');
+      throw new Error('Empty response from OpenAI');
     }
 
-    console.log('Received response from Hugging Face');
+    console.log('Received response from OpenAI');
 
     // Save assistant message
     await supabaseClient
