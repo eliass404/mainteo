@@ -24,41 +24,35 @@ export const LoginForm = () => {
     e.preventDefault();
     
     // Sanitize inputs
-    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedIdentifier = sanitizeInput(email);
     const sanitizedPassword = password.trim();
     
-    if (!sanitizedEmail || !sanitizedPassword) return;
+    if (!sanitizedIdentifier || !sanitizedPassword) return;
+
+    // Enforce email-based login to respect RLS policies
+    if (!sanitizedIdentifier.includes('@')) {
+      toast({
+        title: "Connexion non autorisée avec nom d'utilisateur",
+        description: "Veuillez utiliser votre adresse email pour vous connecter.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailValidation = validateEmail(sanitizedIdentifier);
+    if (!emailValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: emailValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      let signinEmail = sanitizedEmail;
-      // Si l'utilisateur saisit un nom d'utilisateur, on récupère l'email associé
-      if (!signinEmail.includes('@')) {
-        // Validate username format
-        const usernameValidation = validateUsername(signinEmail);
-        if (!usernameValidation.isValid) {
-          throw new Error(usernameValidation.error);
-        }
-        
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('username', signinEmail)
-          .maybeSingle();
-        if (error) throw error;
-        if (!profile?.email) {
-          throw new Error("Nom d'utilisateur introuvable ou email manquant");
-        }
-        signinEmail = profile.email;
-      } else {
-        // Validate email format
-        const emailValidation = validateEmail(signinEmail);
-        if (!emailValidation.isValid) {
-          throw new Error(emailValidation.error);
-        }
-      }
-
-      const { error } = await signIn(signinEmail, sanitizedPassword);
+      const { error } = await signIn(sanitizedIdentifier, sanitizedPassword);
       if (error) {
         throw error;
       }
@@ -172,13 +166,13 @@ export const LoginForm = () => {
               <TabsContent value="signin" className="space-y-4">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-identifier">Email ou nom d'utilisateur</Label>
+                    <Label htmlFor="signin-identifier">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                         <Input
                           id="signin-identifier"
-                          type="text"
-                          placeholder="email ou nom d'utilisateur"
+                          type="email"
+                          placeholder="votre@email.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="pl-10"
