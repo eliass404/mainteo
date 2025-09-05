@@ -70,47 +70,92 @@ serve(async (req) => {
     if (machine.manual_url) {
       try {
         console.log('Fetching manual from:', machine.manual_url);
+        console.log('Using admin client with service role key');
+        
         const { data: manualData, error: manualError } = await supabaseAdmin.storage
           .from('machine-documents')
           .download(machine.manual_url);
         
         if (manualError) {
-          console.error('Error fetching manual:', manualError);
+          console.error('Error fetching manual with admin client:', manualError);
+          // Try with regular client as fallback
+          const { data: fallbackData, error: fallbackError } = await supabaseClient.storage
+            .from('machine-documents')
+            .download(machine.manual_url);
+          
+          if (fallbackError) {
+            console.error('Error fetching manual with regular client:', fallbackError);
+          } else {
+            console.log('Successfully fetched with regular client');
+          }
         } else if (manualData) {
+          console.log('Manual data fetched successfully, type:', typeof manualData);
+          console.log('Manual data instanceof Blob:', manualData instanceof Blob);
+          
           const blob = manualData as Blob;
           const type = blob.type || '';
+          console.log('Blob type:', type);
+          console.log('File extension check:', machine.manual_url.toLowerCase().endsWith('.pdf'));
+          
           const ab = await blob.arrayBuffer();
+          console.log('ArrayBuffer size:', ab.byteLength);
 
           if (type.includes('pdf') || machine.manual_url.toLowerCase().endsWith('.pdf')) {
+            console.log('Processing as PDF file');
             try {
-              const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
-              const pdf = await getDocument({ data: new Uint8Array(ab) }).promise;
-              let txt = '';
-              const maxPages = Math.min(pdf.numPages, 20);
-              for (let i = 1; i <= maxPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const pageText = (content.items as any[]).map((it: any) => it.str || it.text || '').join(' ');
-                txt += `\n[Page ${i}] ${pageText}`;
-                if (txt.length > 12000) break; // keep prompt size reasonable
+              // Try a simpler approach first - just extract as text if possible
+              const uint8Array = new Uint8Array(ab);
+              const decoder = new TextDecoder('utf-8', { fatal: false });
+              let rawText = decoder.decode(uint8Array);
+              
+              // If it contains some readable text, use it
+              if (rawText && rawText.length > 100 && /[a-zA-Z]{3,}/.test(rawText)) {
+                console.log('Successfully extracted text directly from PDF');
+                manualContent = rawText.substring(0, 10000); // Limit size
+              } else {
+                console.log('Direct text extraction failed, trying PDF.js');
+                // Try PDF.js parsing
+                const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
+                const pdf = await getDocument({ data: uint8Array }).promise;
+                console.log('PDF loaded, pages:', pdf.numPages);
+                
+                let txt = '';
+                const maxPages = Math.min(pdf.numPages, 10); // Reduce pages for testing
+                for (let i = 1; i <= maxPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const content = await page.getTextContent();
+                  const pageText = (content.items as any[]).map((it: any) => it.str || it.text || '').join(' ');
+                  txt += `\n[Page ${i}] ${pageText}`;
+                  console.log(`Page ${i} extracted, length:`, pageText.length);
+                  if (txt.length > 8000) break;
+                }
+                manualContent = txt.trim();
+                console.log('PDF.js extraction completed, total length:', manualContent.length);
               }
-              manualContent = txt.trim();
             } catch (e) {
-              console.error('PDF parse failed, fallback to text decode:', e);
+              console.error('PDF processing failed:', e);
+              console.error('Error details:', e.message);
+              // Last resort - try binary to text
               try {
-                manualContent = new TextDecoder().decode(new Uint8Array(ab));
+                const decoder = new TextDecoder('latin1');
+                manualContent = decoder.decode(new Uint8Array(ab)).substring(0, 5000);
+                console.log('Used latin1 decoder fallback');
               } catch (_e) {
-                manualContent = '';
+                console.error('All PDF extraction methods failed');
+                manualContent = `[ERREUR] Impossible de lire le fichier PDF. Le fichier existe mais le contenu n'est pas accessible.`;
               }
             }
           } else {
+            console.log('Processing as text file');
             manualContent = await blob.text();
           }
 
-          console.log('Manual content loaded, length:', manualContent.length);
+          console.log('Final manual content length:', manualContent.length);
+          console.log('Manual content preview (first 200 chars):', manualContent.substring(0, 200));
         }
       } catch (error) {
-        console.error('Could not fetch manual content:', error);
+        console.error('Could not fetch manual content - outer catch:', error);
+        console.error('Error stack:', error.stack);
       }
     }
     
