@@ -69,94 +69,91 @@ serve(async (req) => {
     
     if (machine.manual_url) {
       try {
-        console.log('Fetching manual from:', machine.manual_url);
-        console.log('Using admin client with service role key');
+        console.log('=== MANUAL EXTRACTION START ===');
+        console.log('Manual URL:', machine.manual_url);
         
         const { data: manualData, error: manualError } = await supabaseAdmin.storage
           .from('machine-documents')
           .download(machine.manual_url);
         
         if (manualError) {
-          console.error('Error fetching manual with admin client:', manualError);
-          // Try with regular client as fallback
-          const { data: fallbackData, error: fallbackError } = await supabaseClient.storage
-            .from('machine-documents')
-            .download(machine.manual_url);
-          
-          if (fallbackError) {
-            console.error('Error fetching manual with regular client:', fallbackError);
-          } else {
-            console.log('Successfully fetched with regular client');
-          }
+          console.error('Error downloading manual:', manualError);
+          manualContent = `[ERREUR TÉLÉCHARGEMENT] ${manualError.message}`;
         } else if (manualData) {
-          console.log('Manual data fetched successfully, type:', typeof manualData);
-          console.log('Manual data instanceof Blob:', manualData instanceof Blob);
+          console.log('Manual downloaded successfully');
           
           const blob = manualData as Blob;
-          const type = blob.type || '';
-          console.log('Blob type:', type);
-          console.log('File extension check:', machine.manual_url.toLowerCase().endsWith('.pdf'));
+          console.log('Blob size:', blob.size, 'type:', blob.type);
           
-          const ab = await blob.arrayBuffer();
-          console.log('ArrayBuffer size:', ab.byteLength);
-
-          if (type.includes('pdf') || machine.manual_url.toLowerCase().endsWith('.pdf')) {
-            console.log('Processing as PDF file');
+          // For testing, let's try to extract ANY content we can
+          if (machine.manual_url.toLowerCase().endsWith('.pdf')) {
+            console.log('Processing PDF file...');
+            
+            // Simple approach: try to get ANY readable content
+            const arrayBuffer = await blob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Try different text decoders
+            let extractedText = '';
+            
             try {
-              // Try a simpler approach first - just extract as text if possible
-              const uint8Array = new Uint8Array(ab);
-              const decoder = new TextDecoder('utf-8', { fatal: false });
-              let rawText = decoder.decode(uint8Array);
-              
-              // If it contains some readable text, use it
-              if (rawText && rawText.length > 100 && /[a-zA-Z]{3,}/.test(rawText)) {
-                console.log('Successfully extracted text directly from PDF');
-                manualContent = rawText.substring(0, 10000); // Limit size
-              } else {
-                console.log('Direct text extraction failed, trying PDF.js');
-                // Try PDF.js parsing
-                const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
-                const pdf = await getDocument({ data: uint8Array }).promise;
-                console.log('PDF loaded, pages:', pdf.numPages);
-                
-                let txt = '';
-                const maxPages = Math.min(pdf.numPages, 10); // Reduce pages for testing
-                for (let i = 1; i <= maxPages; i++) {
-                  const page = await pdf.getPage(i);
-                  const content = await page.getTextContent();
-                  const pageText = (content.items as any[]).map((it: any) => it.str || it.text || '').join(' ');
-                  txt += `\n[Page ${i}] ${pageText}`;
-                  console.log(`Page ${i} extracted, length:`, pageText.length);
-                  if (txt.length > 8000) break;
-                }
-                manualContent = txt.trim();
-                console.log('PDF.js extraction completed, total length:', manualContent.length);
+              // Method 1: Try UTF-8
+              const utf8Text = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array);
+              if (utf8Text && utf8Text.length > 100 && /[a-zA-Z0-9]{5,}/.test(utf8Text)) {
+                extractedText = utf8Text;
+                console.log('UTF-8 extraction successful');
               }
             } catch (e) {
-              console.error('PDF processing failed:', e);
-              console.error('Error details:', e.message);
-              // Last resort - try binary to text
+              console.log('UTF-8 extraction failed:', e.message);
+            }
+            
+            if (!extractedText) {
               try {
-                const decoder = new TextDecoder('latin1');
-                manualContent = decoder.decode(new Uint8Array(ab)).substring(0, 5000);
-                console.log('Used latin1 decoder fallback');
-              } catch (_e) {
-                console.error('All PDF extraction methods failed');
-                manualContent = `[ERREUR] Impossible de lire le fichier PDF. Le fichier existe mais le contenu n'est pas accessible.`;
+                // Method 2: Try Latin-1 (often works for PDFs)
+                const latin1Text = new TextDecoder('latin1').decode(uint8Array);
+                if (latin1Text && latin1Text.length > 100) {
+                  extractedText = latin1Text;
+                  console.log('Latin-1 extraction successful');
+                }
+              } catch (e) {
+                console.log('Latin-1 extraction failed:', e.message);
               }
             }
+            
+            if (extractedText) {
+              // Clean and limit the text
+              manualContent = extractedText
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ') // Remove control chars
+                .replace(/\s+/g, ' ') // Normalize whitespace
+                .substring(0, 8000); // Limit size
+                
+              console.log('Final extracted content length:', manualContent.length);
+              console.log('Content preview:', manualContent.substring(0, 200));
+            } else {
+              manualContent = '[ERREUR] Impossible d\'extraire le texte du PDF. Le fichier est peut-être corrompu ou encodé différemment.';
+              console.log('All text extraction methods failed');
+            }
           } else {
-            console.log('Processing as text file');
+            // Not a PDF, treat as text
+            console.log('Processing as text file...');
             manualContent = await blob.text();
+            console.log('Text content extracted, length:', manualContent.length);
           }
-
-          console.log('Final manual content length:', manualContent.length);
-          console.log('Manual content preview (first 200 chars):', manualContent.substring(0, 200));
+        } else {
+          console.log('No manual data received');
+          manualContent = '[ERREUR] Aucune donnée reçue lors du téléchargement';
         }
+        
+        console.log('=== MANUAL EXTRACTION END ===');
+        console.log('Final manualContent length:', manualContent.length);
+        
       } catch (error) {
-        console.error('Could not fetch manual content - outer catch:', error);
-        console.error('Error stack:', error.stack);
+        console.error('Manual extraction failed completely:', error);
+        manualContent = `[ERREUR CRITIQUE] ${error.message}`;
       }
+    } else {
+      console.log('No manual URL provided');
+      manualContent = '';
     }
     
     if (machine.notice_url) {
