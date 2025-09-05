@@ -26,6 +26,12 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
+    // Service role client for privileged storage access (server-side only)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { message, machineId } = await req.json();
     console.log('Received message:', message, 'for machine:', machineId);
 
@@ -64,14 +70,43 @@ serve(async (req) => {
     if (machine.manual_url) {
       try {
         console.log('Fetching manual from:', machine.manual_url);
-        const { data: manualData, error: manualError } = await supabaseClient.storage
+        const { data: manualData, error: manualError } = await supabaseAdmin.storage
           .from('machine-documents')
           .download(machine.manual_url);
         
         if (manualError) {
           console.error('Error fetching manual:', manualError);
         } else if (manualData) {
-          manualContent = await manualData.text();
+          const blob = manualData as Blob;
+          const type = blob.type || '';
+          const ab = await blob.arrayBuffer();
+
+          if (type.includes('pdf') || machine.manual_url.toLowerCase().endsWith('.pdf')) {
+            try {
+              const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
+              const pdf = await getDocument({ data: new Uint8Array(ab) }).promise;
+              let txt = '';
+              const maxPages = Math.min(pdf.numPages, 20);
+              for (let i = 1; i <= maxPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = (content.items as any[]).map((it: any) => it.str || it.text || '').join(' ');
+                txt += `\n[Page ${i}] ${pageText}`;
+                if (txt.length > 12000) break; // keep prompt size reasonable
+              }
+              manualContent = txt.trim();
+            } catch (e) {
+              console.error('PDF parse failed, fallback to text decode:', e);
+              try {
+                manualContent = new TextDecoder().decode(new Uint8Array(ab));
+              } catch (_e) {
+                manualContent = '';
+              }
+            }
+          } else {
+            manualContent = await blob.text();
+          }
+
           console.log('Manual content loaded, length:', manualContent.length);
         }
       } catch (error) {
@@ -82,14 +117,43 @@ serve(async (req) => {
     if (machine.notice_url) {
       try {
         console.log('Fetching notice from:', machine.notice_url);
-        const { data: noticeData, error: noticeError } = await supabaseClient.storage
+        const { data: noticeData, error: noticeError } = await supabaseAdmin.storage
           .from('machine-documents')
           .download(machine.notice_url);
         
         if (noticeError) {
           console.error('Error fetching notice:', noticeError);
         } else if (noticeData) {
-          noticeContent = await noticeData.text();
+          const blob = noticeData as Blob;
+          const type = blob.type || '';
+          const ab = await blob.arrayBuffer();
+
+          if (type.includes('pdf') || machine.notice_url.toLowerCase().endsWith('.pdf')) {
+            try {
+              const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
+              const pdf = await getDocument({ data: new Uint8Array(ab) }).promise;
+              let txt = '';
+              const maxPages = Math.min(pdf.numPages, 15);
+              for (let i = 1; i <= maxPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = (content.items as any[]).map((it: any) => it.str || it.text || '').join(' ');
+                txt += `\n[Page ${i}] ${pageText}`;
+                if (txt.length > 8000) break;
+              }
+              noticeContent = txt.trim();
+            } catch (e) {
+              console.error('PDF parse failed for notice, fallback to text decode:', e);
+              try {
+                noticeContent = new TextDecoder().decode(new Uint8Array(ab));
+              } catch (_e) {
+                noticeContent = '';
+              }
+            }
+          } else {
+            noticeContent = await blob.text();
+          }
+
           console.log('Notice content loaded, length:', noticeContent.length);
         }
       } catch (error) {
