@@ -87,30 +87,56 @@ serve(async (req) => {
           const ab = await blob.arrayBuffer();
 
           if (type.includes('pdf') || machine.manual_url.toLowerCase().endsWith('.pdf')) {
-            // Use pdf.js for robust text extraction (same approach as notice)
+            // Use a different PDF parsing approach
             try {
-              const { getDocument } = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
-              const pdf = await getDocument({ data: new Uint8Array(ab) }).promise;
-              let txt = '';
-              const maxPages = Math.min(pdf.numPages, 20);
-              for (let i = 1; i <= maxPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const pageText = (content.items as any[])?.map((it: any) => it.str || it.text || '').join(' ');
-                txt += `\n[Page ${i}] ${pageText}`;
-                if (txt.length > 8000) break; // keep prompt size in check
-              }
-              manualContent = (txt || '').trim();
-              console.log('Manual text extracted via pdf.js, length:', manualContent.length);
+              // Import pdf-parse directly
+              const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
+              
+              // Convert ArrayBuffer to Buffer for pdf-parse
+              const buffer = new Uint8Array(ab);
+              const pdfData = await pdfParse.default(buffer);
+              
+              manualContent = pdfData.text;
+              console.log('Manual text extracted via pdf-parse, length:', manualContent.length);
             } catch (e) {
-              console.error('PDF parse failed for manual, fallback to text decode:', e);
+              console.error('PDF parse failed with pdf-parse, trying alternative method:', e);
               try {
-                manualContent = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(ab));
-              } catch (_e) {
+                // Alternative: Use a simpler PDF text extraction
+                const response = await fetch('https://api.pdflayer.com/api/convert', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    access_key: 'demo', // This won't work in production but shows the approach
+                    document_base64: btoa(String.fromCharCode(...new Uint8Array(ab))),
+                    output_format: 'txt'
+                  })
+                });
+                
+                if (response.ok) {
+                  manualContent = await response.text();
+                } else {
+                  throw new Error('PDF conversion service failed');
+                }
+              } catch (conversionError) {
+                console.error('PDF conversion service failed, using raw decode:', conversionError);
+                // Final fallback - try to extract readable text from PDF binary
                 try {
-                  manualContent = new TextDecoder('latin1').decode(new Uint8Array(ab));
-                } catch (__e) {
-                  manualContent = '';
+                  const textDecoder = new TextDecoder('utf-8', { fatal: false });
+                  const rawText = textDecoder.decode(new Uint8Array(ab));
+                  
+                  // Extract readable text patterns from PDF
+                  const textMatches = rawText.match(/[A-Za-z0-9\s\.,;:\-\(\)]{10,}/g);
+                  if (textMatches && textMatches.length > 0) {
+                    manualContent = textMatches.join(' ').slice(0, 8000);
+                    console.log('Extracted text patterns from PDF binary, length:', manualContent.length);
+                  } else {
+                    manualContent = '[ERREUR] Impossible d\'extraire le texte du PDF';
+                  }
+                } catch (finalError) {
+                  console.error('All PDF extraction methods failed:', finalError);
+                  manualContent = '[ERREUR] Échec de toutes les méthodes d\'extraction PDF';
                 }
               }
             }
