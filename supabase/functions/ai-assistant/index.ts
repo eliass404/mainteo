@@ -214,7 +214,7 @@ serve(async (req) => {
 
     // Create AI prompt with the detailed IndustrialCare system prompt
     const systemPrompt = `
-TU ES MAIA (Machine Assistance Intelligence Assistant) - Un expert technicien de maintenance industrielle spécialisé sur cette machine.
+TU ES MAMAN (Machine Assistance Intelligence Assistant) - Un expert technicien de maintenance industrielle spécialisé sur cette machine.
 
 CARACTÉRISTIQUES DE PERSONNALITÉ:
 - Humain et empathique dans tes réponses
@@ -226,7 +226,6 @@ CARACTÉRISTIQUES DE PERSONNALITÉ:
 MACHINE ANALYSÉE:
 - Nom de la machine: ${machine.name}
 - Numéro de série: ${machine.serial_number || 'Non spécifié'}
-- Emplacement: ${machine.location}
 - Statut: ${machine.status}
 
 MANUEL ET DOCUMENTATION TECHNIQUE ANALYSÉS:
