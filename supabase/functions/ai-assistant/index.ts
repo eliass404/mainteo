@@ -63,29 +63,43 @@ serve(async (req) => {
     
     if (machine.manual_url) {
       try {
-        const { data: manualData } = await supabaseClient.storage
+        console.log('Fetching manual from:', machine.manual_url);
+        const { data: manualData, error: manualError } = await supabaseClient.storage
           .from('machine-documents')
           .download(machine.manual_url);
-        if (manualData) {
+        
+        if (manualError) {
+          console.error('Error fetching manual:', manualError);
+        } else if (manualData) {
           manualContent = await manualData.text();
+          console.log('Manual content loaded, length:', manualContent.length);
         }
       } catch (error) {
-        console.log('Could not fetch manual content:', error);
+        console.error('Could not fetch manual content:', error);
       }
     }
     
     if (machine.notice_url) {
       try {
-        const { data: noticeData } = await supabaseClient.storage
+        console.log('Fetching notice from:', machine.notice_url);
+        const { data: noticeData, error: noticeError } = await supabaseClient.storage
           .from('machine-documents')
           .download(machine.notice_url);
-        if (noticeData) {
+        
+        if (noticeError) {
+          console.error('Error fetching notice:', noticeError);
+        } else if (noticeData) {
           noticeContent = await noticeData.text();
+          console.log('Notice content loaded, length:', noticeContent.length);
         }
       } catch (error) {
-        console.log('Could not fetch notice content:', error);
+        console.error('Could not fetch notice content:', error);
       }
     }
+
+    console.log('Machine manual_url:', machine.manual_url);
+    console.log('Manual content available:', !!manualContent);
+    console.log('Notice content available:', !!noticeContent);
 
     // Get previous chat messages for context (last 10 messages)
     const { data: previousMessages, error: messagesError } = await supabaseClient
@@ -129,14 +143,23 @@ MACHINE ANALYSÉE:
 
 MANUEL ET DOCUMENTATION TECHNIQUE ANALYSÉS:
 ${machine.manual_url && manualContent ? `
-✅ MANUEL TECHNIQUE INTÉGRÉ:
-${manualContent.substring(0, 3000)}${manualContent.length > 3000 ? '...' : ''}
-` : '❌ Manuel technique non disponible - Je vais utiliser mes connaissances générales'}
+✅ MANUEL TECHNIQUE INTÉGRÉ ET ANALYSÉ - ${manualContent.length} caractères:
+===== DÉBUT DU MANUEL =====
+${manualContent.substring(0, 4000)}${manualContent.length > 4000 ? '\n[...Manuel continue...]' : ''}
+===== FIN EXTRAIT MANUEL =====
+
+JE DOIS UTILISER CE MANUEL pour toutes mes réponses concernant cette machine.
+` : machine.manual_url ? `
+⚠️ Manuel technique référencé mais non accessible. URL: ${machine.manual_url}
+Je vais utiliser mes connaissances générales mais je recommande de vérifier l'accès aux documents.
+` : '❌ Aucun manuel technique disponible'}
 
 ${machine.notice_url && noticeContent ? `
 ✅ NOTICE TECHNIQUE INTÉGRÉE:
-${noticeContent.substring(0, 2000)}${noticeContent.length > 2000 ? '...' : ''}
-` : '❌ Notice technique non disponible'}
+${noticeContent.substring(0, 1500)}${noticeContent.length > 1500 ? '\n[...Notice continue...]' : ''}
+` : machine.notice_url ? `
+⚠️ Notice technique référencée mais non accessible
+` : '❌ Aucune notice technique disponible'}
 
 INSTRUCTIONS DE COMMUNICATION:
 1. Réponds de manière humaine et naturelle, comme un collègue expérimenté
