@@ -165,6 +165,23 @@ export const AdminDashboard = () => {
 
   const handleDeleteMachine = async (machineId: string) => {
     try {
+      // First delete all chat messages associated with this machine
+      const { error: chatError } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('machine_id', machineId);
+
+      if (chatError) throw chatError;
+
+      // Then delete all intervention reports associated with this machine
+      const { error: reportsError } = await supabase
+        .from('intervention_reports')
+        .delete()
+        .eq('machine_id', machineId);
+
+      if (reportsError) throw reportsError;
+
+      // Finally delete the machine itself
       const { error } = await supabase
         .from('machines')
         .delete()
@@ -174,7 +191,7 @@ export const AdminDashboard = () => {
 
       toast({
         title: "Machine supprimée",
-        description: "La machine a été supprimée avec succès.",
+        description: "La machine et toutes ses données associées ont été supprimées avec succès.",
       });
 
       fetchMachines(); // Refresh machines list
