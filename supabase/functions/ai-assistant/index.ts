@@ -181,13 +181,8 @@ ${manualContent.substring(0, 6000)}${manualContent.length > 6000 ? '\n[...Le man
 
 INSTRUCTION CRITIQUE: TU DOIS ABSOLUMENT utiliser ce manuel pour répondre à toutes les questions sur cette machine. 
 Ce manuel contient toutes les informations techniques détaillées nécessaires.
-Ne dis JAMAIS que tu n'as pas accès au manuel - TU L'AS !
-` : machine.manual_url ? `
-⚠️ Manuel technique référencé mais le contenu n'a pas encore été extrait.
-URL: ${machine.manual_url}
-Statut: ${manualContent.includes('[MANUEL NON EXTRAIT]') ? 'En attente d\'extraction par l\'admin' : 'Extraction échouée'}
-Utilise tes connaissances générales et recommande de contacter l'administrateur pour extraire le manuel.
-` : '❌ Aucun manuel technique disponible'}
+Réponds UNIQUEMENT en te basant sur ce manuel technique fourni.
+` : '❌ Aucun manuel technique disponible - utilise tes connaissances générales'}
 
 ${machine.notice_url && noticeContent ? `
 ✅ NOTICE TECHNIQUE INTÉGRÉE:

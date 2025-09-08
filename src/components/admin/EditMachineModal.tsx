@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Machine {
   id: string;
@@ -15,6 +16,7 @@ interface Machine {
   status: 'operational' | 'maintenance' | 'alert';
   description?: string;
   serial_number?: string;
+  manual_content?: string;
 }
 
 interface EditMachineModalProps {
@@ -31,7 +33,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     location: "",
     status: "operational" as 'operational' | 'maintenance' | 'alert',
     description: "",
-    serial_number: ""
+    serial_number: "",
+    manual_content: ""
   });
   
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
@@ -46,7 +49,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
         location: machine.location,
         status: machine.status,
         description: machine.description || "",
-        serial_number: machine.serial_number || ""
+        serial_number: machine.serial_number || "",
+        manual_content: machine.manual_content || ""
       });
     }
   }, [machine]);
@@ -87,7 +91,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
           location: formData.location,
           status: formData.status,
           description: formData.description || null,
-          serial_number: formData.serial_number || null
+          serial_number: formData.serial_number || null,
+          manual_content: formData.manual_content || null
         })
         .eq('id', machine.id);
 
@@ -188,6 +193,20 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
               onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
               placeholder="Description de la machine"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="manual_content">Manuel technique</Label>
+            <Textarea
+              id="manual_content"
+              value={formData.manual_content}
+              onChange={(e) => setFormData(prev => ({...prev, manual_content: e.target.value}))}
+              placeholder="Collez ici le contenu complet du manuel technique de la machine..."
+              className="min-h-[200px] resize-y"
+            />
+            <p className="text-sm text-muted-foreground">
+              Ce contenu sera utilisé par l'IA pour assister les techniciens.
+            </p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

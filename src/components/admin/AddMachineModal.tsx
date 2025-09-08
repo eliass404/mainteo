@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, X } from "lucide-react";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 export const AddMachineModal = () => {
   const [open, setOpen] = useState(false);
@@ -16,12 +16,8 @@ export const AddMachineModal = () => {
     type: "",
     customType: "",
     location: "",
-    serialNumber: ""
-  });
-  
-  const [files, setFiles] = useState({
-    notice: null as File | null,
-    manual: null as File | null
+    serialNumber: "",
+    manualContent: ""
   });
 
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
@@ -48,22 +44,6 @@ export const AddMachineModal = () => {
     }
   };
 
-  const handleFileChange = (type: 'notice' | 'manual') => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setFiles(prev => ({ ...prev, [type]: file }));
-    } else {
-      toast({
-        title: "Type de fichier invalide",
-        description: "Seuls les fichiers PDF sont acceptés.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const removeFile = (type: 'notice' | 'manual') => {
-    setFiles(prev => ({ ...prev, [type]: null }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,8 +55,8 @@ export const AddMachineModal = () => {
       return;
     }
 
-    if (!files.manual) {
-      toast({ title: 'Manuel requis', description: 'Le manuel d\'utilisation est obligatoire.', variant: 'destructive' });
+    if (!formData.manualContent.trim()) {
+      toast({ title: 'Manuel requis', description: 'Le contenu du manuel d\'utilisation est obligatoire.', variant: 'destructive' });
       return;
     }
 
@@ -100,46 +80,20 @@ export const AddMachineModal = () => {
         return;
       }
 
-      // Upload files to storage
-      let notice_url = null;
-      let manual_url = null;
-
-      if (files.notice) {
-        const noticeFileName = `${machineId}-notice-${Date.now()}.pdf`;
-        const { data: noticeData, error: noticeError } = await supabase.storage
-          .from('machine-documents')
-          .upload(noticeFileName, files.notice);
-        
-        if (noticeError) throw noticeError;
-        notice_url = noticeData.path;
-      }
-
-      if (files.manual) {
-        const manualFileName = `${machineId}-manual-${Date.now()}.pdf`;
-        const { data: manualData, error: manualError } = await supabase.storage
-          .from('machine-documents')
-          .upload(manualFileName, files.manual);
-        
-        if (manualError) throw manualError;
-        manual_url = manualData.path;
-      }
-
       const { error: insertError } = await supabase.from('machines').insert({
         id: machineId,
         name: formData.name,
         type: finalType,
         location: formData.location,
         serial_number: formData.serialNumber,
-        notice_url,
-        manual_url
+        manual_content: formData.manualContent
       });
 
       if (insertError) throw insertError;
 
       toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
       setOpen(false);
-      setFormData({ name: '', type: '', customType: '', location: '', serialNumber: '' });
-      setFiles({ notice: null, manual: null });
+      setFormData({ name: '', type: '', customType: '', location: '', serialNumber: '', manualContent: '' });
       
       // Refresh the page to update the machines list
       window.location.reload();
@@ -217,65 +171,20 @@ export const AddMachineModal = () => {
             />
           </div>
 
-          {/* File uploads */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="notice">Notice d'utilisation (PDF)</Label>
-              {files.notice ? (
-                <div className="flex items-center gap-2 p-2 border rounded">
-                  <FileText className="w-4 h-4" />
-                  <span className="flex-1 text-sm">{files.notice.name}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('notice')}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange('notice')}
-                    className="hidden"
-                    id="notice-upload"
-                  />
-                  <label htmlFor="notice-upload" className="cursor-pointer">
-                    <div className="flex flex-col items-center text-gray-500">
-                      <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-sm">Cliquez pour télécharger la notice</span>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="manual">Manuel d'utilisation (PDF) *</Label>
-              {files.manual ? (
-                <div className="flex items-center gap-2 p-2 border rounded">
-                  <FileText className="w-4 h-4" />
-                  <span className="flex-1 text-sm">{files.manual.name}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeFile('manual')}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange('manual')}
-                    className="hidden"
-                    id="manual-upload"
-                  />
-                  <label htmlFor="manual-upload" className="cursor-pointer">
-                    <div className="flex flex-col items-center text-gray-500">
-                      <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-sm">Cliquez pour télécharger le manuel</span>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
+          {/* Manuel technique en texte */}
+          <div className="space-y-2">
+            <Label htmlFor="manualContent">Manuel technique *</Label>
+            <Textarea
+              id="manualContent"
+              value={formData.manualContent}
+              onChange={(e) => setFormData(prev => ({...prev, manualContent: e.target.value}))}
+              placeholder="Collez ici le contenu complet du manuel technique de la machine..."
+              className="min-h-[200px] resize-y"
+              required
+            />
+            <p className="text-sm text-muted-foreground">
+              Collez le texte complet du manuel technique. Ce contenu sera utilisé par l'IA pour assister les techniciens.
+            </p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

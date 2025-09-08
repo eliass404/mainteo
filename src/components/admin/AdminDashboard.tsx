@@ -29,7 +29,7 @@ import { EditMachineModal } from "./EditMachineModal";
 import { EditUserModal } from "./EditUserModal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ExtractManualButton } from "./ExtractManualButton";
+
 
 
 import { useState, useEffect } from "react";
@@ -355,11 +355,6 @@ export const AdminDashboard = () => {
                     <TableCell>{machine.next_maintenance || 'Non programmée'}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <ExtractManualButton 
-                          machineId={machine.id}
-                          manualUrl={machine.manual_url}
-                          onExtractionComplete={fetchMachines}
-                        />
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
