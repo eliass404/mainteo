@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { validateUsername, validateEmail, validateRoleUpdate, validateRole, sanitizeInput } from "@/lib/validation";
 
 interface User {
   id: string;
@@ -20,9 +21,11 @@ interface EditUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUserUpdated: () => void;
+  currentUserRole: string;
+  currentUserId: string;
 }
 
-export const EditUserModal = ({ user, open, onOpenChange, onUserUpdated }: EditUserModalProps) => {
+export const EditUserModal = ({ user, open, onOpenChange, onUserUpdated, currentUserRole, currentUserId }: EditUserModalProps) => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -46,13 +49,65 @@ export const EditUserModal = ({ user, open, onOpenChange, onUserUpdated }: EditU
     e.preventDefault();
     if (!user) return;
 
+    // Sanitize inputs
+    const sanitizedUsername = sanitizeInput(formData.username);
+    const sanitizedEmail = sanitizeInput(formData.email);
+
+    // Validate inputs
+    const usernameValidation = validateUsername(sanitizedUsername);
+    if (!usernameValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: usernameValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (sanitizedEmail) {
+      const emailValidation = validateEmail(sanitizedEmail);
+      if (!emailValidation.isValid) {
+        toast({
+          title: "Erreur de validation",
+          description: emailValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Validate role
+    const roleValidation = validateRole(formData.role);
+    if (!roleValidation.isValid) {
+      toast({
+        title: "Erreur de validation",
+        description: roleValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if role is being changed and if user has permission
+    if (formData.role !== user.role) {
+      const isTargetSelf = user.user_id === currentUserId;
+      const roleUpdateValidation = validateRoleUpdate(currentUserRole, isTargetSelf);
+      if (!roleUpdateValidation.isValid) {
+        toast({
+          title: "Erreur d'autorisation",
+          description: roleUpdateValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          username: formData.username,
-          email: formData.email || null,
+          username: sanitizedUsername,
+          email: sanitizedEmail || null,
           role: formData.role,
         })
         .eq('user_id', user.user_id);

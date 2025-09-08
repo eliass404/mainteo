@@ -101,3 +101,33 @@ export const sanitizeTextContent = (content: string, maxLength: number = 1000): 
     // Limit length
     .slice(0, maxLength);
 };
+
+/**
+ * Validates role updates - only admins can change roles
+ */
+export const validateRoleUpdate = (userRole: string, isTargetSelf: boolean): { isValid: boolean; error?: string } => {
+  // Only admins can change roles
+  if (userRole !== 'admin') {
+    return { isValid: false, error: "Seuls les administrateurs peuvent modifier les rôles" };
+  }
+  
+  // Additional check: prevent self-demotion from admin role for safety
+  if (isTargetSelf && userRole === 'admin') {
+    return { isValid: false, error: "Vous ne pouvez pas modifier votre propre rôle administrateur" };
+  }
+  
+  return { isValid: true };
+};
+
+/**
+ * Validates if a role value is valid
+ */
+export const validateRole = (role: string): { isValid: boolean; error?: string } => {
+  const validRoles = ['admin', 'technicien'];
+  
+  if (!validRoles.includes(role)) {
+    return { isValid: false, error: "Rôle invalide" };
+  }
+  
+  return { isValid: true };
+};

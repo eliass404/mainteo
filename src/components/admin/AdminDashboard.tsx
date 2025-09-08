@@ -39,7 +39,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const AdminDashboard = () => {
+interface AdminDashboardProps {
+  userProfile?: {
+    role: string;
+    user_id: string;
+  };
+}
+
+export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
   const { machines, loading: machinesLoading, fetchMachines } = useMachines();
   const { onlineCount } = useOnlineTechnicians();
   const { toast } = useToast();
@@ -519,6 +526,8 @@ export const AdminDashboard = () => {
         open={!!editingUser}
         onOpenChange={(open) => !open && setEditingUser(null)}
         onUserUpdated={loadUsers}
+        currentUserRole={userProfile?.role || 'admin'}
+        currentUserId={userProfile?.user_id || ''}
       />
 
     </div>

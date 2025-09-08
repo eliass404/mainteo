@@ -68,7 +68,7 @@ const Index = () => {
         if (profile.role === 'admin') {
           return (
             <div key={dashboardKey}>
-              <AdminDashboard />
+              <AdminDashboard userProfile={profile} />
             </div>
           );
         } else {
