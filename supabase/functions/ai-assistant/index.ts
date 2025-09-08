@@ -52,7 +52,7 @@ serve(async (req) => {
       throw new Error('User profile not found');
     }
 
-    // Get machine information with documents
+    // Get machine information with extracted manual content
     const { data: machine, error: machineError } = await supabaseClient
       .from('machines')
       .select('*')
@@ -63,104 +63,22 @@ serve(async (req) => {
       throw new Error('Machine not found');
     }
 
-    // Fetch machine documents content if available
-    let manualContent = '';
+    // Use pre-extracted manual content from database
+    let manualContent = machine.manual_content || '';
     let noticeContent = '';
     
-    if (machine.manual_url) {
-      try {
-        console.log('=== MANUAL EXTRACTION START ===');
-        console.log('Manual URL:', machine.manual_url);
-
-        const { data: manualData, error: manualError } = await supabaseAdmin.storage
-          .from('machine-documents')
-          .download(machine.manual_url);
-
-        if (manualError) {
-          console.error('Error downloading manual:', manualError);
-          manualContent = `[ERREUR TÉLÉCHARGEMENT] ${manualError.message}`;
-        } else if (manualData) {
-          console.log('Manual downloaded successfully');
-
-          const blob = manualData as Blob;
-          const type = blob.type || '';
-          const ab = await blob.arrayBuffer();
-
-          if (type.includes('pdf') || machine.manual_url.toLowerCase().endsWith('.pdf')) {
-            // Use a different PDF parsing approach
-            try {
-              // Import pdf-parse directly
-              const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
-              
-              // Convert ArrayBuffer to Buffer for pdf-parse
-              const buffer = new Uint8Array(ab);
-              const pdfData = await pdfParse.default(buffer);
-              
-              manualContent = pdfData.text;
-              console.log('Manual text extracted via pdf-parse, length:', manualContent.length);
-            } catch (e) {
-              console.error('PDF parse failed with pdf-parse, trying alternative method:', e);
-              try {
-                // Alternative: Use a simpler PDF text extraction
-                const response = await fetch('https://api.pdflayer.com/api/convert', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    access_key: 'demo', // This won't work in production but shows the approach
-                    document_base64: btoa(String.fromCharCode(...new Uint8Array(ab))),
-                    output_format: 'txt'
-                  })
-                });
-                
-                if (response.ok) {
-                  manualContent = await response.text();
-                } else {
-                  throw new Error('PDF conversion service failed');
-                }
-              } catch (conversionError) {
-                console.error('PDF conversion service failed, using raw decode:', conversionError);
-                // Final fallback - try to extract readable text from PDF binary
-                try {
-                  const textDecoder = new TextDecoder('utf-8', { fatal: false });
-                  const rawText = textDecoder.decode(new Uint8Array(ab));
-                  
-                  // Extract readable text patterns from PDF
-                  const textMatches = rawText.match(/[A-Za-z0-9\s\.,;:\-\(\)]{10,}/g);
-                  if (textMatches && textMatches.length > 0) {
-                    manualContent = textMatches.join(' ').slice(0, 8000);
-                    console.log('Extracted text patterns from PDF binary, length:', manualContent.length);
-                  } else {
-                    manualContent = '[ERREUR] Impossible d\'extraire le texte du PDF';
-                  }
-                } catch (finalError) {
-                  console.error('All PDF extraction methods failed:', finalError);
-                  manualContent = '[ERREUR] Échec de toutes les méthodes d\'extraction PDF';
-                }
-              }
-            }
-          } else {
-            // Not a PDF, treat as text
-            console.log('Manual is not a PDF, processing as text file...');
-            manualContent = await blob.text();
-          }
-        } else {
-          console.log('No manual data received');
-          manualContent = '[ERREUR] Aucune donnée reçue lors du téléchargement';
-        }
-
-        console.log('=== MANUAL EXTRACTION END ===');
-        console.log('Final manualContent length:', manualContent.length);
-        if (manualContent) {
-          console.log('Manual content preview:', manualContent.substring(0, 200));
-        }
-      } catch (error) {
-        console.error('Manual extraction failed completely:', error);
-        manualContent = `[ERREUR CRITIQUE] ${error.message}`;
-      }
+    console.log('Machine manual_content available:', !!manualContent);
+    console.log('Manual content length:', manualContent.length);
+    
+    if (manualContent) {
+      console.log('Using pre-extracted manual content from database');
+      console.log('Manual content preview:', manualContent.substring(0, 200));
+    } else if (machine.manual_url) {
+      console.log('No pre-extracted content found. Manual URL exists but content not extracted yet.');
+      console.log('Consider using the Extract Manual button in admin dashboard.');
+      manualContent = '[MANUEL NON EXTRAIT] Le manuel PDF existe mais n\'a pas encore été traité. Demandez à l\'administrateur d\'utiliser le bouton "Extraire le manuel" dans le tableau de bord admin.';
     } else {
-      console.log('No manual URL provided');
+      console.log('No manual URL or content available');
       manualContent = '';
     }
     
@@ -255,21 +173,20 @@ MACHINE ANALYSÉE:
 - Statut: ${machine.status}
 
 MANUEL ET DOCUMENTATION TECHNIQUE ANALYSÉS:
-${machine.manual_url && manualContent && manualContent.length > 50 ? `
+${manualContent && manualContent.length > 50 ? `
 ✅ MANUEL TECHNIQUE COMPLÈTEMENT INTÉGRÉ ET ANALYSÉ - ${manualContent.length} caractères:
-===== DÉBUT DU MANUEL VLB-67 =====
+===== DÉBUT DU MANUEL ${machine.name.toUpperCase()} =====
 ${manualContent.substring(0, 6000)}${manualContent.length > 6000 ? '\n[...Le manuel continue avec plus de détails techniques...]' : ''}
 ===== FIN EXTRAIT MANUEL =====
 
-INSTRUCTION CRITIQUE: TU DOIS ABSOLUMENT utiliser ce manuel pour répondre à toutes les questions sur la VLB-67. 
+INSTRUCTION CRITIQUE: TU DOIS ABSOLUMENT utiliser ce manuel pour répondre à toutes les questions sur cette machine. 
 Ce manuel contient toutes les informations techniques détaillées nécessaires.
 Ne dis JAMAIS que tu n'as pas accès au manuel - TU L'AS !
 ` : machine.manual_url ? `
-⚠️ Manuel technique référencé mais le contenu n'a pas pu être extrait correctement.
+⚠️ Manuel technique référencé mais le contenu n'a pas encore été extrait.
 URL: ${machine.manual_url}
-Contenu extrait: ${manualContent ? manualContent.substring(0, 200) + '...' : 'Aucun'}
-Longueur: ${manualContent ? manualContent.length : 0} caractères
-Je vais utiliser mes connaissances générales mais recommande de vérifier l'accès aux documents.
+Statut: ${manualContent.includes('[MANUEL NON EXTRAIT]') ? 'En attente d\'extraction par l\'admin' : 'Extraction échouée'}
+Utilise tes connaissances générales et recommande de contacter l'administrateur pour extraire le manuel.
 ` : '❌ Aucun manuel technique disponible'}
 
 ${machine.notice_url && noticeContent ? `

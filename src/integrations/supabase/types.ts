@@ -117,6 +117,7 @@ export type Database = {
           id: string
           last_maintenance: string | null
           location: string
+          manual_content: string | null
           manual_url: string | null
           name: string
           next_maintenance: string | null
@@ -132,6 +133,7 @@ export type Database = {
           id: string
           last_maintenance?: string | null
           location: string
+          manual_content?: string | null
           manual_url?: string | null
           name: string
           next_maintenance?: string | null
@@ -147,6 +149,7 @@ export type Database = {
           id?: string
           last_maintenance?: string | null
           location?: string
+          manual_content?: string | null
           manual_url?: string | null
           name?: string
           next_maintenance?: string | null
