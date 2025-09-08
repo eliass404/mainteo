@@ -38,11 +38,15 @@ Deno.serve(async (req) => {
 
     console.log('PDF downloaded successfully, size:', fileData.size);
 
-    // Convertir en ArrayBuffer pour le traitement
+    // Convertir en ArrayBuffer pour le traitement (limiter la taille analysée)
     const arrayBuffer = await fileData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
+
+    // Ne traiter que les premiers 512KB pour éviter le dépassement CPU
+    const MAX_BYTES = 512 * 1024;
+    const slice = uint8Array.subarray(0, Math.min(uint8Array.length, MAX_BYTES));
     
-    console.log('Starting PDF text extraction...');
+    console.log('Starting PDF text extraction (first', slice.length, 'bytes)...');
     
     // Extraction de texte optimisée pour éviter le timeout
     let extractedText = '';
@@ -50,21 +54,22 @@ Deno.serve(async (req) => {
     try {
       // Méthode simple et rapide pour extraire le texte
       const textDecoder = new TextDecoder('latin1', { fatal: false });
-      const pdfString = textDecoder.decode(uint8Array);
+      const pdfString = textDecoder.decode(slice);
       
       // Extraire les objets de texte PDF de manière optimisée
-      const textMatches = [];
+      const textMatches: string[] = [];
       
       // Rechercher les patterns de texte dans les objets PDF
       const streamPattern = /BT\s*(.*?)\s*ET/gs;
       const textObjPattern = /\((.*?)\)/g;
       
-      // Extraire les streams de texte
-      let streamMatch;
-      let matchCount = 0;
-      while ((streamMatch = streamPattern.exec(pdfString)) !== null && matchCount < 100) {
+      // Extraire les streams de texte (max 60 streams)
+      let streamMatch: RegExpExecArray | null;
+      let streamCount = 0;
+      let charCount = 0;
+      while ((streamMatch = streamPattern.exec(pdfString)) !== null && streamCount < 60 && charCount < 15000) {
         const streamContent = streamMatch[1];
-        let textMatch;
+        let textMatch: RegExpExecArray | null;
         while ((textMatch = textObjPattern.exec(streamContent)) !== null) {
           const text = textMatch[1]
             .replace(/\\n/g, ' ')
@@ -77,23 +82,24 @@ Deno.serve(async (req) => {
           
           if (text.length > 2 && !/^[\d\s\.]+$/.test(text)) {
             textMatches.push(text);
+            charCount += text.length + 1;
+            if (textMatches.length >= 800 || charCount >= 15000) break;
           }
         }
-        matchCount++;
-        
-        // Éviter les boucles infinies
-        if (extractedText.length > 10000) break;
+        streamCount++;
+        if (textMatches.length >= 800 || charCount >= 15000) break;
       }
       
-      // Fallback : extraction simple par patterns
+      // Fallback : extraction simple par patterns (max 400 matches)
       if (textMatches.length === 0) {
         console.log('Using fallback text extraction method...');
         const simpleTextPattern = /\(([^)]{3,})\)/g;
-        let match;
-        while ((match = simpleTextPattern.exec(pdfString)) !== null && textMatches.length < 500) {
+        let match: RegExpExecArray | null;
+        while ((match = simpleTextPattern.exec(pdfString)) !== null && textMatches.length < 400 && charCount < 15000) {
           const text = match[1].trim();
           if (text.length > 3 && text.includes(' ')) {
             textMatches.push(text);
+            charCount += text.length + 1;
           }
         }
       }
