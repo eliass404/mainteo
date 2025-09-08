@@ -42,10 +42,9 @@ Deno.serve(async (req) => {
 
     console.log('PDF downloaded successfully, size:', fileData.size);
 
-    // Étape 2: Convertir en Buffer
+    // Étape 2: Lire le contenu en ArrayBuffer (Deno n'a pas Buffer)
     const arrayBuffer = await fileData.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    console.log('PDF converted to buffer, length:', buffer.length);
+    console.log('PDF loaded into ArrayBuffer, byteLength:', arrayBuffer.byteLength);
 
     // Pour l'instant, on utilise encore du texte de test mais on indique qu'on a le PDF
     const testText = `Manuel de la machine ${machineId} - PDF téléchargé avec succès (${fileData.size} bytes). Extraction réelle à venir...`;
