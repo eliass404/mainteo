@@ -157,7 +157,7 @@ serve(async (req) => {
       });
 
     // Function to select relevant manual content based on the question
-    const selectRelevantManualContent = (fullContent, userQuestion, maxLength = 12000) => {
+    const selectRelevantManualContent = (fullContent, userQuestion, maxLength = 25000) => {
       if (!fullContent || fullContent.length <= maxLength) {
         return fullContent;
       }
