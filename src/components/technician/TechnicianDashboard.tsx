@@ -44,6 +44,8 @@ export const TechnicianDashboard = () => {
     time_spent: "",
     status: "en-cours"
   });
+  const [manualContent, setManualContent] = useState("");
+  const [updatingManual, setUpdatingManual] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   useEffect(() => {
     if (profile) {
@@ -99,6 +101,7 @@ export const TechnicianDashboard = () => {
       const machine = userMachines.find(m => m.id === selectedMachine);
       if (machine) {
         initializeChat(selectedMachine, machine.name);
+        setManualContent(machine.manual_content || "");
       }
     }
   }, [selectedMachine, userMachines]);
@@ -157,6 +160,73 @@ export const TechnicianDashboard = () => {
         description: "Impossible de sauvegarder le rapport",
         variant: "destructive",
       });
+    }
+  };
+
+  const clearMachineChats = async (machineId: string) => {
+    try {
+      // Supprimer tous les messages de chat pour cette machine
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('machine_id', machineId);
+
+      if (error) throw error;
+
+      // Nettoyer le localStorage aussi
+      try {
+        localStorage.removeItem(`aiChat.messages.${machineId}`);
+      } catch (_) {}
+
+      console.log(`Chat messages cleared for machine ${machineId}`);
+    } catch (error) {
+      console.error('Error clearing chat messages:', error);
+    }
+  };
+
+  const handleUpdateManual = async () => {
+    if (!selectedMachine || !profile) return;
+
+    setUpdatingManual(true);
+    try {
+      // Vérifier si le manuel a changé
+      const currentMachine = userMachines.find(m => m.id === selectedMachine);
+      const manualChanged = currentMachine?.manual_content !== manualContent;
+
+      const { error } = await supabase
+        .from('machines')
+        .update({
+          manual_content: manualContent || null
+        })
+        .eq('id', selectedMachine);
+
+      if (error) throw error;
+
+      // Si le manuel a été modifié, vider les discussions
+      if (manualChanged && manualContent?.trim()) {
+        await clearMachineChats(selectedMachine);
+        toast({
+          title: "Manuel mis à jour",
+          description: "Manuel technique mis à jour et discussions réinitialisées.",
+        });
+      } else {
+        toast({
+          title: "Manuel mis à jour",
+          description: "Le manuel technique a été mis à jour avec succès.",
+        });
+      }
+
+      // Recharger les machines pour mettre à jour l'affichage
+      await loadUserMachines();
+    } catch (error) {
+      console.error('Error updating manual:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le manuel",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingManual(false);
     }
   };
 
@@ -286,7 +356,7 @@ export const TechnicianDashboard = () => {
               </CardHeader>
               <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="chat" className="flex items-center gap-2">
                       <MessageCircle className="w-4 h-4" />
                       Assistant IA MAIA
@@ -294,6 +364,10 @@ export const TechnicianDashboard = () => {
                     <TabsTrigger value="rapport" className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       Rapport d'intervention
+                    </TabsTrigger>
+                    <TabsTrigger value="documentation" className="flex items-center gap-2">
+                      <FileCheck className="w-4 h-4" />
+                      Documentation
                     </TabsTrigger>
                   </TabsList>
 
@@ -415,6 +489,49 @@ export const TechnicianDashboard = () => {
                       >
                         <FileText className="w-4 h-4 mr-2" />
                         Sauvegarder le brouillon
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="documentation" forceMount className="space-y-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">Manuel technique</h3>
+                        <Badge variant={manualContent?.trim() ? "default" : "secondary"}>
+                          {manualContent?.trim() ? "Disponible" : "Non renseigné"}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="manual_content">Contenu du manuel technique</Label>
+                        <Textarea
+                          id="manual_content"
+                          value={manualContent}
+                          onChange={(e) => setManualContent(e.target.value)}
+                          placeholder="Collez ici le contenu complet du manuel technique de la machine..."
+                          className="min-h-[300px] resize-y"
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          ⚠️ Attention : La modification du manuel réinitialisera automatiquement toutes les discussions avec l'IA pour cette machine.
+                        </p>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleUpdateManual}
+                        disabled={updatingManual}
+                        className="w-full"
+                      >
+                        {updatingManual ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Mise à jour en cours...
+                          </>
+                        ) : (
+                          <>
+                            <FileCheck className="w-4 h-4 mr-2" />
+                            Mettre à jour le manuel
+                          </>
+                        )}
                       </Button>
                     </div>
                   </TabsContent>

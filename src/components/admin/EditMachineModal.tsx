@@ -77,12 +77,36 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     }
   };
 
+  const clearMachineChats = async (machineId: string) => {
+    try {
+      // Supprimer tous les messages de chat pour cette machine
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('machine_id', machineId);
+
+      if (error) throw error;
+
+      // Nettoyer le localStorage aussi
+      try {
+        localStorage.removeItem(`aiChat.messages.${machineId}`);
+      } catch (_) {}
+
+      console.log(`Chat messages cleared for machine ${machineId}`);
+    } catch (error) {
+      console.error('Error clearing chat messages:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!machine) return;
 
     setLoading(true);
     try {
+      // Vérifier si le manuel a été modifié
+      const manualChanged = machine.manual_content !== formData.manual_content;
+
       const { error } = await supabase
         .from('machines')
         .update({
@@ -98,10 +122,19 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
 
       if (error) throw error;
 
-      toast({
-        title: "Machine mise à jour",
-        description: "Les informations de la machine ont été mises à jour avec succès.",
-      });
+      // Si le manuel a été modifié, vider les discussions
+      if (manualChanged && formData.manual_content?.trim()) {
+        await clearMachineChats(machine.id);
+        toast({
+          title: "Machine mise à jour",
+          description: "Machine mise à jour et discussions réinitialisées suite à la modification du manuel.",
+        });
+      } else {
+        toast({
+          title: "Machine mise à jour",
+          description: "Les informations de la machine ont été mises à jour avec succès.",
+        });
+      }
 
       onMachineUpdated();
       onOpenChange(false);
