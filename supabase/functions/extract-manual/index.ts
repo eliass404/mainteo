@@ -27,28 +27,30 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Télécharger le PDF depuis Supabase Storage
-    const { data, error } = await supabase.storage
-      .from("manuals")
+    // Télécharger le PDF depuis le bucket manuals
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('manuals')
       .download(filePath);
 
-    if (error) {
-      console.error('Storage download error:', error);
-      throw new Error(`Failed to download PDF: ${error.message}`);
+    if (downloadError) {
+      console.error('Storage download error:', downloadError);
+      throw new Error(`Failed to download PDF: ${downloadError.message}`);
     }
 
-    console.log('PDF downloaded successfully, size:', data.size);
+    console.log('PDF downloaded successfully, size:', fileData.size);
 
     // Convertir en Buffer pour pdf-parse
-    const buffer = await data.arrayBuffer();
-    console.log('Converting to buffer...');
+    const arrayBuffer = await fileData.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Extraire le texte avec pdf-parse
-    const pdfData = await pdf(Buffer.from(buffer));
-    const extractedText = pdfData.text.trim();
+    console.log('Starting PDF text extraction with pdf-parse...');
+
+    // Utiliser pdf-parse pour extraire le texte
+    const pdfData = await pdf(buffer);
+    const extractedText = pdfData.text;
 
     console.log(`Extracted ${extractedText.length} characters of text`);
-    console.log('Text preview:', extractedText.substring(0, 200));
+    console.log(`Text preview: ${extractedText.substring(0, 200)}...`);
 
     // Sauvegarder le contenu extrait dans la base de données
     const { error: updateError } = await supabase
