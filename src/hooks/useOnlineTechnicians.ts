@@ -16,14 +16,12 @@ export const useOnlineTechnicians = () => {
     const trackOnlineStatus = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Update last_seen in chat_messages to track activity
+        // Update technician activity table
         await supabase
-          .from('chat_messages')
+          .from('technician_activity')
           .upsert({
-            technician_id: user.id,
-            machine_id: 'online_status',
-            content: 'online',
-            role: 'system'
+            user_id: user.id,
+            last_seen: new Date().toISOString()
           });
       }
     };
@@ -32,9 +30,9 @@ export const useOnlineTechnicians = () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
       const { data: recentActivity, error } = await supabase
-        .from('chat_messages')
-        .select('technician_id, created_at')
-        .gte('created_at', fiveMinutesAgo);
+        .from('technician_activity')
+        .select('user_id, last_seen')
+        .gte('last_seen', fiveMinutesAgo);
 
       if (error) {
         console.error('Error fetching recent activity:', error);
@@ -49,16 +47,7 @@ export const useOnlineTechnicians = () => {
         return;
       }
 
-      // Group by technician and get the latest activity
-      const technicianMap = new Map<string, string>();
-      recentActivity.forEach((activity: any) => {
-        const prev = technicianMap.get(activity.technician_id);
-        if (!prev || new Date(activity.created_at) > new Date(prev)) {
-          technicianMap.set(activity.technician_id, activity.created_at);
-        }
-      });
-
-      const userIds = Array.from(technicianMap.keys());
+      const userIds = recentActivity.map(activity => activity.user_id);
       if (userIds.length === 0) {
         setOnlineTechnicians([]);
         setOnlineCount(0);
@@ -78,10 +67,12 @@ export const useOnlineTechnicians = () => {
         return;
       }
 
+      const activityMap = new Map(recentActivity.map(a => [a.user_id, a.last_seen]));
+      
       const onlineTechs = profilesData.map((p) => ({
         user_id: p.user_id as string,
         username: p.username as string,
-        last_seen: technicianMap.get(p.user_id as string) as string,
+        last_seen: activityMap.get(p.user_id as string) as string,
       }));
 
       setOnlineTechnicians(onlineTechs);
@@ -96,7 +87,7 @@ export const useOnlineTechnicians = () => {
     const trackInterval = setInterval(trackOnlineStatus, 60000); // Track every minute
     const updateInterval = setInterval(getOnlineTechnicians, 30000); // Update every 30 seconds
 
-    // Set up real-time subscription for chat activity
+    // Set up real-time subscription for activity changes
     const channel = supabase
       .channel('technician-activity')
       .on(
@@ -104,7 +95,7 @@ export const useOnlineTechnicians = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'chat_messages'
+          table: 'technician_activity'
         },
         () => {
           getOnlineTechnicians();
