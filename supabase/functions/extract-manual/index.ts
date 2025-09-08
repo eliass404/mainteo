@@ -29,8 +29,26 @@ Deno.serve(async (req) => {
 
     console.log('Supabase client created');
 
-    // Test simple : juste mettre du texte de test
-    const testText = `Manuel de la machine ${machineId} - Contenu extrait automatiquement le ${new Date().toISOString()}. Ceci est un test d'extraction.`;
+    // Étape 1: Télécharger le PDF
+    console.log('Downloading PDF from storage...');
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('machine-documents')
+      .download(filePath);
+
+    if (downloadError) {
+      console.error('Storage download error:', downloadError);
+      throw new Error(`Failed to download PDF: ${downloadError.message}`);
+    }
+
+    console.log('PDF downloaded successfully, size:', fileData.size);
+
+    // Étape 2: Convertir en Buffer
+    const arrayBuffer = await fileData.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    console.log('PDF converted to buffer, length:', buffer.length);
+
+    // Pour l'instant, on utilise encore du texte de test mais on indique qu'on a le PDF
+    const testText = `Manuel de la machine ${machineId} - PDF téléchargé avec succès (${fileData.size} bytes). Extraction réelle à venir...`;
     
     console.log('Updating machine with test text...');
 
