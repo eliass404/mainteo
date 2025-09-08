@@ -27,9 +27,9 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Télécharger le PDF depuis le bucket manuals
+    // Télécharger le PDF depuis le bucket machine-documents (où il est actuellement stocké)
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from('manuals')
+      .from('machine-documents')
       .download(filePath);
 
     if (downloadError) {
