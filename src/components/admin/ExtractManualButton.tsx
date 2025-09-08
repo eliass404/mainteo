@@ -40,11 +40,15 @@ export const ExtractManualButton: React.FC<ExtractManualButtonProps> = ({
         }
       });
 
+      console.log('Edge function response:', { data, error });
+
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
       if (data?.error) {
+        console.error('Function returned error:', data.error);
         throw new Error(data.error);
       }
 

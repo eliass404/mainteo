@@ -1,23 +1,19 @@
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import pdf from "npm:pdf-parse";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { machineId, filePath } = await req.json();
     
     if (!machineId || !filePath) {
@@ -26,102 +22,36 @@ Deno.serve(async (req) => {
 
     console.log(`Starting PDF extraction for machine: ${machineId}, file: ${filePath}`);
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     // Télécharger le PDF depuis Supabase Storage
-    const { data: fileData, error: downloadError } = await supabaseClient.storage
-      .from('machine-documents')
+    const { data, error } = await supabase.storage
+      .from("manuals")
       .download(filePath);
 
-    if (downloadError) {
-      console.error('Storage download error:', downloadError);
-      throw new Error(`Failed to download PDF: ${downloadError.message}`);
+    if (error) {
+      console.error('Storage download error:', error);
+      throw new Error(`Failed to download PDF: ${error.message}`);
     }
 
-    console.log('PDF downloaded successfully, size:', fileData.size);
+    console.log('PDF downloaded successfully, size:', data.size);
 
-    // Convertir en ArrayBuffer pour le traitement (limiter la taille analysée)
-    const arrayBuffer = await fileData.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
+    // Convertir en Buffer pour pdf-parse
+    const buffer = await data.arrayBuffer();
+    console.log('Converting to buffer...');
 
-    // Traiter au plus 256KB pour rester sous les limites CPU
-    const MAX_BYTES = 256 * 1024;
-    const view = uint8.subarray(0, Math.min(uint8.length, MAX_BYTES));
-    console.log('Starting fast PDF text extraction (bytes):', view.length);
+    // Extraire le texte avec pdf-parse
+    const pdfData = await pdf(Buffer.from(buffer));
+    const extractedText = pdfData.text.trim();
 
-    // Extraction ultra-rapide, sans regex coûteuses
-    let extractedText = '';
-    try {
-      const s = new TextDecoder('latin1', { fatal: false }).decode(view);
-
-      // Parcours caractère par caractère pour récupérer le texte entre parenthèses
-      let inParen = false;
-      let escape = false;
-      let buf = '';
-      let added = 0;
-      const MAX_CHARS = 12000;
-
-      for (let i = 0; i < s.length; i++) {
-        const ch = s[i];
-        if (!inParen) {
-          if (ch === '(') {
-            inParen = true;
-            buf = '';
-            escape = false;
-          }
-          continue;
-        }
-
-        if (escape) {
-          // Gestion des séquences \n, \r, \t, \\, \(, \)
-          switch (ch) {
-            case 'n': buf += ' '; break;
-            case 'r': buf += ' '; break;
-            case 't': buf += ' '; break;
-            case '(': buf += '('; break;
-            case ')': buf += ')'; break;
-            case '\\': buf += '\\'; break;
-            default: buf += ch; break;
-          }
-          escape = false;
-          continue;
-        }
-
-        if (ch === '\\') { // caractère d'échappement
-          escape = true;
-          continue;
-        }
-
-        if (ch === ')') { // fin du bloc de texte
-          const clean = buf.trim();
-          if (clean && /[A-Za-zÀ-ÿ]/.test(clean)) {
-            extractedText += clean + ' ';
-            added += clean.length + 1;
-            if (added >= MAX_CHARS) break;
-          }
-          inParen = false;
-          buf = '';
-          continue;
-        }
-
-        // Caractère normal
-        buf += ch;
-      }
-
-      extractedText = extractedText.replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
-
-      // Fallback minimal si quasi vide
-      if (extractedText.length < 100) {
-        const fallback = s.match(/[A-Za-zÀ-ÿ]{3,}(?:\s+[A-Za-zÀ-ÿ]{3,}){3,}/);
-        if (fallback) extractedText = fallback[0].slice(0, MAX_CHARS);
-      }
-
-      console.log('Fast extraction produced chars:', extractedText.length);
-    } catch (extractionError) {
-      console.error('Fast extraction error:', extractionError);
-      extractedText = `Document PDF pour la machine ${machineId}. Extraction automatique échouée - vérifiez le format du PDF.`;
-    }
+    console.log(`Extracted ${extractedText.length} characters of text`);
+    console.log('Text preview:', extractedText.substring(0, 200));
 
     // Sauvegarder le contenu extrait dans la base de données
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('machines')
       .update({ manual_content: extractedText })
       .eq('id', machineId);
