@@ -40,82 +40,84 @@ Deno.serve(async (req) => {
 
     // Convertir en ArrayBuffer pour le traitement (limiter la taille analysée)
     const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    const uint8 = new Uint8Array(arrayBuffer);
 
-    // Ne traiter que les premiers 512KB pour éviter le dépassement CPU
-    const MAX_BYTES = 512 * 1024;
-    const slice = uint8Array.subarray(0, Math.min(uint8Array.length, MAX_BYTES));
-    
-    console.log('Starting PDF text extraction (first', slice.length, 'bytes)...');
-    
-    // Extraction de texte optimisée pour éviter le timeout
+    // Traiter au plus 256KB pour rester sous les limites CPU
+    const MAX_BYTES = 256 * 1024;
+    const view = uint8.subarray(0, Math.min(uint8.length, MAX_BYTES));
+    console.log('Starting fast PDF text extraction (bytes):', view.length);
+
+    // Extraction ultra-rapide, sans regex coûteuses
     let extractedText = '';
-    
     try {
-      // Méthode simple et rapide pour extraire le texte
-      const textDecoder = new TextDecoder('latin1', { fatal: false });
-      const pdfString = textDecoder.decode(slice);
-      
-      // Extraire les objets de texte PDF de manière optimisée
-      const textMatches: string[] = [];
-      
-      // Rechercher les patterns de texte dans les objets PDF
-      const streamPattern = /BT\s*(.*?)\s*ET/gs;
-      const textObjPattern = /\((.*?)\)/g;
-      
-      // Extraire les streams de texte (max 60 streams)
-      let streamMatch: RegExpExecArray | null;
-      let streamCount = 0;
-      let charCount = 0;
-      while ((streamMatch = streamPattern.exec(pdfString)) !== null && streamCount < 60 && charCount < 15000) {
-        const streamContent = streamMatch[1];
-        let textMatch: RegExpExecArray | null;
-        while ((textMatch = textObjPattern.exec(streamContent)) !== null) {
-          const text = textMatch[1]
-            .replace(/\\n/g, ' ')
-            .replace(/\\r/g, ' ')
-            .replace(/\\t/g, ' ')
-            .replace(/\\\(/g, '(')
-            .replace(/\\\)/g, ')')
-            .replace(/\\\\/g, '\\')
-            .trim();
-          
-          if (text.length > 2 && !/^[\d\s\.]+$/.test(text)) {
-            textMatches.push(text);
-            charCount += text.length + 1;
-            if (textMatches.length >= 800 || charCount >= 15000) break;
+      const s = new TextDecoder('latin1', { fatal: false }).decode(view);
+
+      // Parcours caractère par caractère pour récupérer le texte entre parenthèses
+      let inParen = false;
+      let escape = false;
+      let buf = '';
+      let added = 0;
+      const MAX_CHARS = 12000;
+
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (!inParen) {
+          if (ch === '(') {
+            inParen = true;
+            buf = '';
+            escape = false;
           }
+          continue;
         }
-        streamCount++;
-        if (textMatches.length >= 800 || charCount >= 15000) break;
-      }
-      
-      // Fallback : extraction simple par patterns (max 400 matches)
-      if (textMatches.length === 0) {
-        console.log('Using fallback text extraction method...');
-        const simpleTextPattern = /\(([^)]{3,})\)/g;
-        let match: RegExpExecArray | null;
-        while ((match = simpleTextPattern.exec(pdfString)) !== null && textMatches.length < 400 && charCount < 15000) {
-          const text = match[1].trim();
-          if (text.length > 3 && text.includes(' ')) {
-            textMatches.push(text);
-            charCount += text.length + 1;
+
+        if (escape) {
+          // Gestion des séquences \n, \r, \t, \\, \(, \)
+          switch (ch) {
+            case 'n': buf += ' '; break;
+            case 'r': buf += ' '; break;
+            case 't': buf += ' '; break;
+            case '(': buf += '('; break;
+            case ')': buf += ')'; break;
+            case '\\': buf += '\\'; break;
+            default: buf += ch; break;
           }
+          escape = false;
+          continue;
         }
+
+        if (ch === '\\') { // caractère d'échappement
+          escape = true;
+          continue;
+        }
+
+        if (ch === ')') { // fin du bloc de texte
+          const clean = buf.trim();
+          if (clean && /[A-Za-zÀ-ÿ]/.test(clean)) {
+            extractedText += clean + ' ';
+            added += clean.length + 1;
+            if (added >= MAX_CHARS) break;
+          }
+          inParen = false;
+          buf = '';
+          continue;
+        }
+
+        // Caractère normal
+        buf += ch;
       }
-      
-      // Assembler le texte final
-      extractedText = textMatches
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .substring(0, 15000); // Limiter la taille
-      
-      console.log(`Extracted ${extractedText.length} characters of text`);
-      
+
+      extractedText = extractedText.replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
+
+      // Fallback minimal si quasi vide
+      if (extractedText.length < 100) {
+        const fallback = s.match(/[A-Za-zÀ-ÿ]{3,}(?:\s+[A-Za-zÀ-ÿ]{3,}){3,}/);
+        if (fallback) extractedText = fallback[0].slice(0, MAX_CHARS);
+      }
+
+      console.log('Fast extraction produced chars:', extractedText.length);
     } catch (extractionError) {
-      console.error('Text extraction error:', extractionError);
-      extractedText = `Document PDF pour la machine ${machineId}. Extraction automatique échouée - veuillez vérifier le format du PDF.`;
+      console.error('Fast extraction error:', extractionError);
+      extractedText = `Document PDF pour la machine ${machineId}. Extraction automatique échouée - vérifiez le format du PDF.`;
     }
 
     // Sauvegarder le contenu extrait dans la base de données
