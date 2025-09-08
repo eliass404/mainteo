@@ -80,20 +80,11 @@ export const AdminDashboard = () => {
 
       console.log('Loaded users:', data); // Debug log
 
-      // Get machine counts for technicians
-      const usersWithCounts = await Promise.all(
-        (data || []).map(async (user) => {
-          const { count } = await supabase
-            .from('machines')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_technician_id', user.user_id);
-
-          return {
-            ...user,
-            machinesCount: count || 0
-          };
-        })
-      );
+      // Plus de comptes de machines par technicien (tous voient toutes les machines)
+      const usersWithCounts = (data || []).map((user) => ({
+        ...user,
+        machinesCount: 0 // Supprimé car plus d'affectation individuelle
+      }));
 
       console.log('Users with machine counts:', usersWithCounts); // Debug log
       setUsers(usersWithCounts);
@@ -312,17 +303,7 @@ export const AdminDashboard = () => {
                 <SelectItem value="alert">Alerte</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Département" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                {Array.from(new Set(machines.map(m => m.department))).map(dept => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Supprimé le filtre par département */}
           </div>
         </CardHeader>
         <CardContent>
@@ -333,9 +314,7 @@ export const AdminDashboard = () => {
                 <TableHead>Machine</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Emplacement</TableHead>
-                <TableHead>Département</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead>Technicien Assigné</TableHead>
                 <TableHead>Prochaine Maintenance</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -361,11 +340,9 @@ export const AdminDashboard = () => {
                   .filter(machine => {
                     const matchesSearch = machine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                         machine.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        machine.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        machine.department.toLowerCase().includes(searchTerm.toLowerCase());
+                                        machine.location.toLowerCase().includes(searchTerm.toLowerCase());
                     const matchesStatus = statusFilter === "all" || machine.status === statusFilter;
-                    const matchesDepartment = departmentFilter === "all" || machine.department === departmentFilter;
-                    return matchesSearch && matchesStatus && matchesDepartment;
+                    return matchesSearch && matchesStatus;
                   })
                   .map((machine) => (
                   <TableRow key={machine.id}>
@@ -373,11 +350,7 @@ export const AdminDashboard = () => {
                     <TableCell>{machine.name}</TableCell>
                     <TableCell>{machine.type}</TableCell>
                     <TableCell>{machine.location}</TableCell>
-                    <TableCell>{machine.department}</TableCell>
                     <TableCell>{getStatusBadge(machine.status)}</TableCell>
-                    <TableCell>
-                      {users.find(u => u.user_id === machine.assigned_technician_id)?.username || 'Non assigné'}
-                    </TableCell>
                     <TableCell>{machine.next_maintenance || 'Non programmée'}</TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -439,7 +412,7 @@ export const AdminDashboard = () => {
                 <TableHead>Nom d'utilisateur</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Rôle</TableHead>
-                <TableHead>Machines Assignées</TableHead>
+                <TableHead>Statut</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -460,7 +433,11 @@ export const AdminDashboard = () => {
                         {user.role === 'admin' ? 'Administrateur' : 'Technicien'}
                       </Badge>
                     </TableCell>
-                    <TableCell>{user.role === 'technicien' ? user.machinesCount : '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {user.role === 'admin' ? 'Administrateur global' : 'Technicien'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

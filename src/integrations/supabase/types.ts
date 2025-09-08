@@ -112,9 +112,7 @@ export type Database = {
       }
       machines: {
         Row: {
-          assigned_technician_id: string | null
           created_at: string
-          department: string
           description: string | null
           id: string
           last_maintenance: string | null
@@ -129,9 +127,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          assigned_technician_id?: string | null
           created_at?: string
-          department: string
           description?: string | null
           id: string
           last_maintenance?: string | null
@@ -146,9 +142,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          assigned_technician_id?: string | null
           created_at?: string
-          department?: string
           description?: string | null
           id?: string
           last_maintenance?: string | null
@@ -162,15 +156,7 @@ export type Database = {
           type?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "machines_assigned_technician_id_fkey"
-            columns: ["assigned_technician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {

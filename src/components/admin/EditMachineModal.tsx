@@ -12,11 +12,9 @@ interface Machine {
   name: string;
   type: string;
   location: string;
-  department: string;
   status: 'operational' | 'maintenance' | 'alert';
   description?: string;
   serial_number?: string;
-  assigned_technician_id?: string;
 }
 
 interface EditMachineModalProps {
@@ -31,15 +29,11 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     name: "",
     type: "",
     location: "",
-    department: "",
     status: "operational" as 'operational' | 'maintenance' | 'alert',
     description: "",
-    serial_number: "",
-    assigned_technician_id: ""
+    serial_number: ""
   });
   
-  const [technicians, setTechnicians] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -50,50 +44,18 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
         name: machine.name,
         type: machine.type,
         location: machine.location,
-        department: machine.department,
         status: machine.status,
         description: machine.description || "",
-        serial_number: machine.serial_number || "",
-        assigned_technician_id: machine.assigned_technician_id || ""
+        serial_number: machine.serial_number || ""
       });
     }
   }, [machine]);
 
   useEffect(() => {
-    loadTechnicians();
-    loadDepartments();
-    loadMachineTypes();
-  }, []);
-
-  const loadTechnicians = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, username')
-        .eq('role', 'technicien');
-      
-      if (error) throw error;
-      setTechnicians(data || []);
-    } catch (error) {
-      console.error('Error loading technicians:', error);
+    if (open) {
+      loadMachineTypes();
     }
-  };
-
-  const loadDepartments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('machines')
-        .select('department')
-        .not('department', 'is', null);
-      
-      if (error) throw error;
-      
-      const uniqueDepartments = [...new Set(data?.map(m => m.department) || [])];
-      setDepartments(uniqueDepartments);
-    } catch (error) {
-      console.error('Error loading departments:', error);
-    }
-  };
+  }, [open]);
 
   const loadMachineTypes = async () => {
     try {
@@ -123,18 +85,16 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
           name: formData.name,
           type: formData.type,
           location: formData.location,
-          department: formData.department,
           status: formData.status,
           description: formData.description || null,
-          serial_number: formData.serial_number || null,
-          assigned_technician_id: formData.assigned_technician_id || null,
+          serial_number: formData.serial_number || null
         })
         .eq('id', machine.id);
 
       if (error) throw error;
 
       toast({
-        title: "Machine modifiée",
+        title: "Machine mise à jour",
         description: "Les informations de la machine ont été mises à jour avec succès.",
       });
 
@@ -144,7 +104,7 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
       console.error('Error updating machine:', error);
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de modifier la machine",
+        description: error.message || "Impossible de mettre à jour la machine",
         variant: "destructive",
       });
     } finally {
@@ -156,7 +116,7 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Modifier la machine {machine?.id}</DialogTitle>
+          <DialogTitle>Modifier la machine</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -166,6 +126,7 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))}
+                placeholder="Ex: VLB-67"
                 required
               />
             </div>
@@ -175,111 +136,66 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
                 id="serial_number"
                 value={formData.serial_number}
                 onChange={(e) => setFormData(prev => ({...prev, serial_number: e.target.value}))}
+                placeholder="Ex: SN123456"
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="type">Type de machine</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({...prev, type: value}))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {machineTypes.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                  <SelectItem value="__add_new__">+ Ajouter un nouveau type</SelectItem>
-                </SelectContent>
-              </Select>
-              {formData.type === "__add_new__" && (
-                <Input
-                  placeholder="Nouveau type de machine"
-                  onChange={(e) => setFormData(prev => ({...prev, type: e.target.value}))}
-                />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Emplacement</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData(prev => ({...prev, location: e.target.value}))}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="department">Département</Label>
-              <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({...prev, department: value}))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner le département" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                  <SelectItem value="__add_new__">+ Ajouter un nouveau département</SelectItem>
-                </SelectContent>
-              </Select>
-              {formData.department === "__add_new__" && (
-                <Input
-                  placeholder="Nouveau département"
-                  onChange={(e) => setFormData(prev => ({...prev, department: e.target.value}))}
-                />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Statut</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({...prev, status: value as 'operational' | 'maintenance' | 'alert'}))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="operational">Opérationnel</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="alert">Alerte</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="technician">Technicien assigné</Label>
-            <Select value={formData.assigned_technician_id || "none"} onValueChange={(value) => setFormData(prev => ({...prev, assigned_technician_id: value === "none" ? "" : value}))}>
+            <Label htmlFor="type">Type de machine</Label>
+            <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({...prev, type: value}))}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un technicien" />
+                <SelectValue placeholder="Sélectionner le type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Aucun technicien</SelectItem>
-                {technicians.map((tech) => (
-                  <SelectItem key={tech.user_id} value={tech.user_id}>
-                    {tech.username}
-                  </SelectItem>
+                {machineTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="location">Emplacement</Label>
+            <Input
+              id="location"
+              value={formData.location}
+              onChange={(e) => setFormData(prev => ({...prev, location: e.target.value}))}
+              placeholder="Ex: Atelier 1"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Statut</Label>
+            <Select value={formData.status} onValueChange={(value: 'operational' | 'maintenance' | 'alert') => setFormData(prev => ({...prev, status: value}))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner le statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="operational">Opérationnel</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="alert">Alerte</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optionnel)</Label>
             <Input
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
-              placeholder="Description optionnelle"
+              placeholder="Description de la machine"
             />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Annuler
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Modification..." : "Modifier la machine"}
+              {loading ? "Mise à jour..." : "Mettre à jour"}
             </Button>
           </div>
         </form>

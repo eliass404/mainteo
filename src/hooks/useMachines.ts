@@ -7,13 +7,11 @@ interface Machine {
   name: string;
   type: string;
   location: string;
-  department: string;
   status: 'operational' | 'maintenance' | 'alert';
   description?: string;
   serial_number?: string;
   last_maintenance?: string;
   next_maintenance?: string;
-  assigned_technician_id?: string;
   manual_url?: string;
   notice_url?: string;
 }
@@ -85,12 +83,12 @@ export const useMachines = () => {
     }
   };
 
-  const getUserMachines = async (userId: string) => {
+  // Tous les techniciens voient toutes les machines
+  const getUserMachines = async () => {
     try {
       const { data, error } = await supabase
         .from('machines')
         .select('*')
-        .eq('assigned_technician_id', userId)
         .order('name');
 
       if (error) {
@@ -99,7 +97,7 @@ export const useMachines = () => {
 
       return data as Machine[] || [];
     } catch (error) {
-      console.error('Error fetching user machines:', error);
+      console.error('Error fetching machines:', error);
       return [];
     }
   };

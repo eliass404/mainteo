@@ -60,7 +60,7 @@ export const InterventionReport = () => {
   const loadUserMachines = async () => {
     try {
       setLoadingMachines(true);
-      const machines = await getUserMachines(profile!.user_id);
+      const machines = await getUserMachines();
       setUserMachines(machines);
       
       if (machines.length === 0) {

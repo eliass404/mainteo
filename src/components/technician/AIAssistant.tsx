@@ -65,21 +65,21 @@ export const AIAssistant = () => {
   const loadUserMachines = async () => {
     try {
       setLoadingMachines(true);
-      const machines = await getUserMachines(profile!.user_id);
+      const machines = await getUserMachines();
       setUserMachines(machines);
       
       if (machines.length === 0) {
         toast({
-          title: "Aucune machine assignée",
-          description: "Vous n'avez aucune machine assignée. Contactez votre administrateur.",
+          title: "Aucune machine disponible",
+          description: "Aucune machine n'est disponible dans le système.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error loading user machines:', error);
+      console.error('Error loading machines:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger vos machines assignées",
+        description: "Impossible de charger les machines",
         variant: "destructive",
       });
     } finally {

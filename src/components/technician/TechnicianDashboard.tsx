@@ -79,7 +79,7 @@ export const TechnicianDashboard = () => {
     
     setLoadingMachines(true);
     try {
-      const machines = await getUserMachines(profile.user_id);
+      const machines = await getUserMachines();
       setUserMachines(machines);
     } catch (error) {
       console.error('Error loading user machines:', error);
