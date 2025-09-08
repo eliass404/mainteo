@@ -42,59 +42,74 @@ Deno.serve(async (req) => {
     const arrayBuffer = await fileData.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Extraction de texte simple basée sur les patterns PDF
+    console.log('Starting PDF text extraction...');
+    
+    // Extraction de texte optimisée pour éviter le timeout
     let extractedText = '';
     
     try {
-      // Méthode d'extraction basique pour les PDFs simples
-      const pdfString = new TextDecoder('latin1').decode(uint8Array);
+      // Méthode simple et rapide pour extraire le texte
+      const textDecoder = new TextDecoder('latin1', { fatal: false });
+      const pdfString = textDecoder.decode(uint8Array);
       
-      // Extraction des objets de texte PDF
-      const textObjects = pdfString.match(/\(([^)]+)\)/g) || [];
-      const streamObjects = pdfString.match(/stream\s*(.*?)\s*endstream/gs) || [];
+      // Extraire les objets de texte PDF de manière optimisée
+      const textMatches = [];
       
-      // Extraire le texte des objets entre parenthèses
-      for (const textObj of textObjects) {
-        const cleanText = textObj.slice(1, -1) // Enlever les parenthèses
-          .replace(/\\n/g, ' ')
-          .replace(/\\r/g, ' ')
-          .replace(/\\t/g, ' ')
-          .replace(/\\\(/g, '(')
-          .replace(/\\\)/g, ')')
-          .replace(/\\\\/g, '\\')
-          .trim();
-        
-        if (cleanText.length > 2 && !/^[\d\s\.]+$/.test(cleanText)) {
-          extractedText += cleanText + ' ';
+      // Rechercher les patterns de texte dans les objets PDF
+      const streamPattern = /BT\s*(.*?)\s*ET/gs;
+      const textObjPattern = /\((.*?)\)/g;
+      
+      // Extraire les streams de texte
+      let streamMatch;
+      let matchCount = 0;
+      while ((streamMatch = streamPattern.exec(pdfString)) !== null && matchCount < 100) {
+        const streamContent = streamMatch[1];
+        let textMatch;
+        while ((textMatch = textObjPattern.exec(streamContent)) !== null) {
+          const text = textMatch[1]
+            .replace(/\\n/g, ' ')
+            .replace(/\\r/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
+            .trim();
+          
+          if (text.length > 2 && !/^[\d\s\.]+$/.test(text)) {
+            textMatches.push(text);
+          }
         }
+        matchCount++;
+        
+        // Éviter les boucles infinies
+        if (extractedText.length > 10000) break;
       }
       
-      // Essayer d'extraire du contenu décompressé simple
-      for (const stream of streamObjects) {
-        const streamContent = stream.replace(/^stream\s*/, '').replace(/\s*endstream$/, '');
-        // Rechercher des patterns de texte lisible
-        const readableText = streamContent.match(/[A-Za-zÀ-ÿ\s]{3,}/g) || [];
-        for (const text of readableText) {
-          const cleanText = text.trim();
-          if (cleanText.length > 5) {
-            extractedText += cleanText + ' ';
+      // Fallback : extraction simple par patterns
+      if (textMatches.length === 0) {
+        console.log('Using fallback text extraction method...');
+        const simpleTextPattern = /\(([^)]{3,})\)/g;
+        let match;
+        while ((match = simpleTextPattern.exec(pdfString)) !== null && textMatches.length < 500) {
+          const text = match[1].trim();
+          if (text.length > 3 && text.includes(' ')) {
+            textMatches.push(text);
           }
         }
       }
       
-      // Nettoyer le texte final
-      extractedText = extractedText
+      // Assembler le texte final
+      extractedText = textMatches
+        .join(' ')
         .replace(/\s+/g, ' ')
-        .replace(/[^\w\sÀ-ÿ.,;:!?()-]/g, ' ')
-        .trim();
+        .trim()
+        .substring(0, 15000); // Limiter la taille
       
-      console.log(`Extracted text length: ${extractedText.length}`);
-      console.log(`Text preview: ${extractedText.substring(0, 200)}...`);
+      console.log(`Extracted ${extractedText.length} characters of text`);
       
     } catch (extractionError) {
       console.error('Text extraction error:', extractionError);
-      // Fallback: utiliser quelques métadonnées du PDF
-      extractedText = `Document PDF pour la machine ${machineId}. Contenu non extractible automatiquement.`;
+      extractedText = `Document PDF pour la machine ${machineId}. Extraction automatique échouée - veuillez vérifier le format du PDF.`;
     }
 
     // Sauvegarder le contenu extrait dans la base de données
