@@ -156,6 +156,69 @@ serve(async (req) => {
         content: message
       });
 
+    // Function to select relevant manual content based on the question
+    const selectRelevantManualContent = (fullContent, userQuestion, maxLength = 12000) => {
+      if (!fullContent || fullContent.length <= maxLength) {
+        return fullContent;
+      }
+
+      // Split content into sections (assuming sections are separated by headings or clear breaks)
+      const sections = fullContent.split(/(?=\n[A-Z][A-Z\s]{3,}|\n\d+\.|\n[IVX]+\.|\n-{3,}|\n={3,})/);
+      
+      // Keywords to search for based on the question
+      const questionLower = userQuestion.toLowerCase();
+      const keywords = questionLower.split(' ').filter(word => word.length > 3);
+      
+      // Score sections based on keyword relevance
+      const scoredSections = sections.map(section => {
+        const sectionLower = section.toLowerCase();
+        let score = 0;
+        
+        keywords.forEach(keyword => {
+          const matches = (sectionLower.match(new RegExp(keyword, 'g')) || []).length;
+          score += matches;
+        });
+        
+        return { section, score, length: section.length };
+      });
+      
+      // Sort by relevance score (descending)
+      scoredSections.sort((a, b) => b.score - a.score);
+      
+      // Select most relevant sections that fit within maxLength
+      let selectedContent = '';
+      let currentLength = 0;
+      
+      for (const item of scoredSections) {
+        if (currentLength + item.length <= maxLength) {
+          selectedContent += item.section + '\n\n';
+          currentLength += item.length + 2;
+        } else if (currentLength < maxLength * 0.8) {
+          // If we haven't used 80% of available space, include a truncated version
+          const remainingSpace = maxLength - currentLength - 100;
+          if (remainingSpace > 200) {
+            selectedContent += item.section.substring(0, remainingSpace) + '\n[...section tronquée...]\n\n';
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      
+      // If no relevant sections found, return first part of manual
+      if (selectedContent.trim().length === 0) {
+        return fullContent.substring(0, maxLength) + (fullContent.length > maxLength ? '\n[...manuel continue...]' : '');
+      }
+      
+      return selectedContent.trim();
+    };
+
+    // Select relevant manual content
+    const relevantManualContent = manualContent ? selectRelevantManualContent(manualContent, message) : '';
+
+    console.log('Selected manual content length:', relevantManualContent.length);
+    console.log('Original manual length:', manualContent ? manualContent.length : 0);
+
     // Create AI prompt with the detailed IndustrialCare system prompt
     const systemPrompt = `
 TU ES MAMAN (Machine Assistance Intelligence Assistant) - Un expert technicien de maintenance industrielle spécialisé sur cette machine.
@@ -173,14 +236,15 @@ MACHINE ANALYSÉE:
 - Statut: ${machine.status}
 
 MANUEL ET DOCUMENTATION TECHNIQUE ANALYSÉS:
-${manualContent && manualContent.length > 50 ? `
-✅ MANUEL TECHNIQUE COMPLÈTEMENT INTÉGRÉ ET ANALYSÉ - ${manualContent.length} caractères:
+${relevantManualContent && relevantManualContent.length > 50 ? `
+✅ MANUEL TECHNIQUE INTÉGRÉ ET ANALYSÉ - ${manualContent ? manualContent.length : 0} caractères (${relevantManualContent.length} sélectionnés):
 ===== DÉBUT DU MANUEL ${machine.name.toUpperCase()} =====
-${manualContent.substring(0, 6000)}${manualContent.length > 6000 ? '\n[...Le manuel continue avec plus de détails techniques...]' : ''}
+${relevantManualContent}
 ===== FIN EXTRAIT MANUEL =====
 
 INSTRUCTION CRITIQUE: TU DOIS ABSOLUMENT utiliser ce manuel pour répondre à toutes les questions sur cette machine. 
 Ce manuel contient toutes les informations techniques détaillées nécessaires.
+Les sections ci-dessus ont été sélectionnées comme les plus pertinentes pour cette question.
 Réponds UNIQUEMENT en te basant sur ce manuel technique fourni.
 ` : '❌ Aucun manuel technique disponible - utilise tes connaissances générales'}
 
