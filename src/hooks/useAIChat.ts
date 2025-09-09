@@ -125,9 +125,38 @@ export const useAIChat = () => {
     }
   };
 
-  const initializeChat = async (machineId: string, machineName: string) => {
+  const initializeChat = async (machineId: string, machineName: string, options?: { reset?: boolean }) => {
     setIsLoading(true);
     setCurrentMachineId(machineId);
+
+    // Check if we should force reset (from options or a persisted flag)
+    let forceReset = !!options?.reset;
+    try {
+      const resetFlag = localStorage.getItem(`aiChat.reset.${machineId}`);
+      if (resetFlag === 'true') {
+        forceReset = true;
+        localStorage.removeItem(`aiChat.reset.${machineId}`);
+      }
+    } catch (_) {}
+
+    if (forceReset) {
+      try { localStorage.removeItem(`aiChat.messages.${machineId}`); } catch (_) {}
+      // Show fresh welcome sequence without loading previous history
+      setChatMessages([{
+        role: 'assistant',
+        content: `🔄 Initialisation de MAIA pour la machine ${machineName}...\n\nAnalyse des documents techniques en cours...`
+      }]);
+      setTimeout(() => {
+        const welcome = [{
+          role: 'assistant' as const,
+          content: `✅ **MAIA** est maintenant connectée à la machine **${machineName}**.\n\n🤖 Je suis votre assistante IA spécialisée en maintenance industrielle. J'ai analysé les documents techniques disponibles pour cette machine.\n\n💡 **Comment puis-je vous aider ?**\n- Diagnostic de pannes\n- Procédures de maintenance\n- Identification de pièces détachées\n- Consignes de sécurité\n\nN'hésitez pas à me décrire le problème ou à me poser vos questions !`
+        }];
+        setChatMessages(welcome);
+        try { localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(welcome)); } catch (_) {}
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
 
     // Try local cache first
     try {

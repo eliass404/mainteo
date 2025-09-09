@@ -149,11 +149,12 @@ export const TechnicianDashboard = () => {
 
       // Si l'intervention est finalisée, reset le chat de la machine
       if (isFinalized && selectedMachine) {
+        try { localStorage.setItem(`aiChat.reset.${selectedMachine}`, 'true'); } catch (_) {}
         resetChatForMachine(selectedMachine);
-        // Réinitialiser le chat pour cette machine
+        // Réinitialiser le chat pour cette machine (session neuve)
         const machine = userMachines.find(m => m.id === selectedMachine);
         if (machine) {
-          await initializeChat(selectedMachine, machine.name);
+          await initializeChat(selectedMachine, machine.name, { reset: true });
         }
       }
 
@@ -480,7 +481,6 @@ export const TechnicianDashboard = () => {
                         variant="outline" 
                         className="flex-1"
                         onClick={() => handleSaveReport(false)}
-                        disabled={!interventionReport.description.trim()}
                       >
                         <FileText className="w-4 h-4 mr-2" />
                         Sauvegarder le brouillon

@@ -93,10 +93,10 @@ export const InterventionReport = () => {
       return;
     }
 
-    if (!interventionReport.description.trim()) {
+    if (isFinalized && !interventionReport.description.trim()) {
       toast({
         title: "Erreur",
-        description: "Veuillez remplir la description du problème",
+        description: "Veuillez remplir la description du problème pour finaliser",
         variant: "destructive",
       });
       return;
@@ -128,7 +128,10 @@ export const InterventionReport = () => {
 
       // Si l'intervention est finalisée, reset le chat de la machine
       if (isFinalized && selectedMachine) {
-        localStorage.removeItem(`aiChat.messages.${selectedMachine}`);
+        try {
+          localStorage.removeItem(`aiChat.messages.${selectedMachine}`);
+          localStorage.setItem(`aiChat.reset.${selectedMachine}`, 'true');
+        } catch (_) {}
       }
 
       // Reset form
