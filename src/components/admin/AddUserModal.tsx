@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ interface AddUserModalProps {
 }
 
 export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -87,6 +89,7 @@ export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
           role: formData.role,
           phone: sanitizedPhone,
           department: formData.department,
+          created_by_admin_id: profile?.user_id, // Associer le technicien à l'admin connecté
         }
       });
 

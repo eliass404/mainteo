@@ -30,7 +30,7 @@ serve(async (req) => {
     const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     const body = await req.json();
-    const { email, password, username, role = 'technicien', phone, department } = body ?? {};
+    const { email, password, username, role = 'technicien', phone, department, created_by_admin_id } = body ?? {};
 
     if (!email || !password || !username) {
       return new Response(JSON.stringify({ error: 'email, password et username sont requis' }), {
@@ -91,7 +91,13 @@ serve(async (req) => {
     // Create profile row
     const { error: profileInsertErr } = await serviceClient
       .from('profiles')
-      .insert({ user_id: created.user.id, username, role, email });
+      .insert({ 
+        user_id: created.user.id, 
+        username, 
+        role, 
+        email,
+        created_by_admin_id: role === 'technicien' ? created_by_admin_id : null
+      });
 
     if (profileInsertErr) {
       console.error('Profile insert error:', profileInsertErr);

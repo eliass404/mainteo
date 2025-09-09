@@ -164,6 +164,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          created_by_admin_id: string | null
           email: string | null
           id: string
           role: string
@@ -173,6 +174,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by_admin_id?: string | null
           email?: string | null
           id?: string
           role: string
@@ -182,6 +184,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by_admin_id?: string | null
           email?: string | null
           id?: string
           role?: string
@@ -189,7 +192,15 @@ export type Database = {
           user_id?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       technician_activity: {
         Row: {

@@ -255,7 +255,7 @@ export const LoginForm = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="role">Rôle</Label>
-                    <Select value={role} onValueChange={(value: 'technicien') => setRole(value)}>
+                    <Select value={role} onValueChange={(value: 'admin' | 'technicien') => setRole(value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un rôle" />
                       </SelectTrigger>
@@ -266,9 +266,14 @@ export const LoginForm = () => {
                             Technicien
                           </div>
                         </SelectItem>
+                        <SelectItem value="admin">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            Administrateur
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Les comptes administrateurs sont créés par un administrateur.</p>
                   </div>
                   
                   <Button type="submit" className="w-full" disabled={isLoading}>

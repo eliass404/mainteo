@@ -76,10 +76,14 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
   }, [machines]);
 
   const loadUsers = async () => {
+    if (!userProfile || userProfile.role !== 'admin') return;
+
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .or(`created_by_admin_id.eq.${userProfile.user_id},and(role.eq.admin,created_by_admin_id.is.null)`)
+        .neq('user_id', userProfile.user_id)
         .order('created_at', { ascending: false });
 
       if (error) {
