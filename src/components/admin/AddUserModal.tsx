@@ -18,7 +18,11 @@ const departments = [
   "R&D"
 ];
 
-export const AddUserModal = () => {
+interface AddUserModalProps {
+  onUserCreated?: () => void;
+}
+
+export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -86,12 +90,26 @@ export const AddUserModal = () => {
         }
       });
 
-      if (error) throw new Error(error.message);
-      if (!data?.ok) throw new Error(data?.error || 'Création échouée');
+      console.log('Create user response:', { data, error });
+
+      if (error) {
+        console.error('Function invocation error:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data?.ok) {
+        console.error('User creation failed:', data);
+        throw new Error(data?.error || 'Création échouée');
+      }
 
       toast.success(`Utilisateur ${formData.role} créé avec succès`);
       setOpen(false);
       setFormData({ username: '', email: '', phone: '', role: '', department: '', password: '' });
+      
+      // Actualiser la liste des utilisateurs si une fonction onUserCreated existe
+      if (onUserCreated) {
+        onUserCreated();
+      }
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la création');
     }

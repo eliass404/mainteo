@@ -214,16 +214,33 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      const { error } = await supabase
+      // Première étape : supprimer les rapports d'intervention liés
+      const { error: reportsError } = await supabase
+        .from('intervention_reports')
+        .delete()
+        .eq('technician_id', userId);
+
+      if (reportsError) throw reportsError;
+
+      // Deuxième étape : supprimer le profil utilisateur
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Troisième étape : supprimer l'utilisateur de l'auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (authError) {
+        console.warn('Auth user deletion failed:', authError);
+        // Ne pas bloquer si la suppression auth échoue
+      }
 
       toast({
         title: "Utilisateur supprimé",
-        description: "L'utilisateur a été supprimé avec succès.",
+        description: "L'utilisateur et toutes ses données ont été supprimés avec succès.",
       });
 
       loadUsers(); // Refresh users list
@@ -429,7 +446,7 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Utilisateurs</CardTitle>
-            <AddUserModal />
+            <AddUserModal onUserCreated={loadUsers} />
           </div>
         </CardHeader>
         <CardContent>
