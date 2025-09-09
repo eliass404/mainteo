@@ -23,6 +23,15 @@ export const AddMachineModal = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  const slugify = (str: string) =>
+    str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
+
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
 
   const { toast } = useToast();
@@ -56,15 +65,17 @@ export const AddMachineModal = () => {
       console.log('File details:', { name: pdfFile.name, size: pdfFile.size, type: pdfFile.type });
       
       const fileExt = pdfFile.name.split('.').pop();
-      const fileName = `${machineId}/manual.${fileExt}`;
+      const safeFolder = slugify(machineId);
+      const fileName = `${safeFolder}/manual.${fileExt}`;
       
-      console.log('Uploading to:', fileName);
+      console.log('Uploading to path:', fileName);
       
       const { data, error } = await supabase.storage
         .from('manuals')
         .upload(fileName, pdfFile, {
           cacheControl: '3600',
-          upsert: true
+          upsert: true,
+          contentType: 'application/pdf'
         });
 
       if (error) {
@@ -104,7 +115,8 @@ export const AddMachineModal = () => {
     }
 
     try {
-      const machineId = `${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+      const baseId = `${formData.name}-${Date.now()}`;
+      const machineId = slugify(baseId);
 
       // Check if machine with same name already exists at this location
       const { data: existingMachine } = await supabase

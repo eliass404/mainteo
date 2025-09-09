@@ -45,6 +45,15 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const slugify = (str: string) =>
+    str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
+
   useEffect(() => {
     if (machine) {
       setFormData({
@@ -88,13 +97,15 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
 
     try {
       const fileExt = pdfFile.name.split('.').pop();
-      const fileName = `${machineId}/manual.${fileExt}`;
+      const safeFolder = slugify(machineId);
+      const fileName = `${safeFolder}/manual.${fileExt}`;
       
       const { data, error } = await supabase.storage
         .from('manuals')
         .upload(fileName, pdfFile, {
           cacheControl: '3600',
-          upsert: true
+          upsert: true,
+          contentType: 'application/pdf'
         });
 
       if (error) throw error;
