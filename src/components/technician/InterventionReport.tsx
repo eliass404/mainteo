@@ -13,7 +13,8 @@ import {
   FileCheck,
   Calendar,
   MapPin,
-  Cog
+  Cog,
+  Download
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -149,6 +150,29 @@ export const InterventionReport = () => {
     }
   };
 
+  const downloadManual = async () => {
+    if (!selectedMachineData?.manual_url) {
+      toast({ title: "Manuel non disponible", description: "Aucun manuel PDF n'est disponible pour cette machine", variant: "destructive" });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage.from('manuals').download(selectedMachineData.manual_url);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Manuel_${selectedMachineData.name.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Téléchargement réussi", description: "Le manuel a été téléchargé avec succès" });
+    } catch (error) {
+      console.error('Error downloading manual:', error);
+      toast({ title: "Erreur de téléchargement", description: "Impossible de télécharger le manuel", variant: "destructive" });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'operational':
@@ -219,7 +243,12 @@ export const InterventionReport = () => {
                 <div className="flex items-center gap-2">
                   <FileCheck className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Documentation:</span>
-                  <span className="text-sm">{selectedMachineData.documentation_url ? 'Disponible' : 'Non disponible'}</span>
+                  <span className="text-sm">{(selectedMachineData.manual_url || selectedMachineData.manual_content) ? 'Disponible' : 'Non disponible'}</span>
+                  {selectedMachineData.manual_url && (
+                    <Button variant="ghost" size="sm" className="h-6 px-2" onClick={downloadManual}>
+                      <Download className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

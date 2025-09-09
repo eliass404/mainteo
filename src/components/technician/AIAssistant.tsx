@@ -13,13 +13,15 @@ import {
   User as UserIcon,
   Calendar,
   MapPin,
-  FileCheck
+  FileCheck,
+  Download
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMachines } from "@/hooks/useMachines";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AIAssistant = () => {
   const { profile } = useAuth();
@@ -117,6 +119,29 @@ export const AIAssistant = () => {
 
   const selectedMachineData = userMachines.find(m => m.id === selectedMachine);
 
+  const downloadManual = async () => {
+    if (!selectedMachineData?.manual_url) {
+      toast({ title: "Manuel non disponible", description: "Aucun manuel PDF n'est disponible pour cette machine", variant: "destructive" });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage.from('manuals').download(selectedMachineData.manual_url);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Manuel_${selectedMachineData.name.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Téléchargement réussi", description: "Le manuel a été téléchargé avec succès" });
+    } catch (error) {
+      console.error('Error downloading manual:', error);
+      toast({ title: "Erreur de téléchargement", description: "Impossible de télécharger le manuel", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -184,7 +209,12 @@ export const AIAssistant = () => {
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wide">Documentation</span>
-                      <p className="text-sm font-medium">{selectedMachineData?.documentation_url ? 'Disponible' : 'Non disponible'}</p>
+                      <p className="text-sm font-medium">{(selectedMachineData?.manual_url || selectedMachineData?.manual_content) ? 'Disponible' : 'Non disponible'}</p>
+                      {selectedMachineData?.manual_url && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 ml-2" onClick={downloadManual}>
+                          <Download className="w-3 h-3 mr-1" /> Télécharger
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
