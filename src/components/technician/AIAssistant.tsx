@@ -14,7 +14,8 @@ import {
   Calendar,
   MapPin,
   FileCheck,
-  Download
+  Download,
+  Trash2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,7 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const AIAssistant = () => {
   const { profile } = useAuth();
   const { getUserMachines } = useMachines();
-  const { chatMessages, isLoading, sendMessage, initializeChat } = useAIChat();
+  const { chatMessages, isLoading, sendMessage, initializeChat, deleteChatForMachine } = useAIChat();
   const { toast } = useToast();
   
   const [userMachines, setUserMachines] = useState<any[]>([]);
@@ -142,6 +143,31 @@ export const AIAssistant = () => {
     }
   };
 
+  const handleDeleteChat = async () => {
+    if (!selectedMachine) return;
+
+    const result = await deleteChatForMachine(selectedMachine);
+    
+    if (result.success) {
+      toast({
+        title: "Chat supprimé",
+        description: "L'historique du chat a été supprimé avec succès",
+      });
+      
+      // Reinitialize the chat with fresh welcome message
+      const machine = userMachines.find(m => m.id === selectedMachine);
+      if (machine) {
+        initializeChat(selectedMachine, machine.name, { reset: true });
+      }
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le chat",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -236,15 +262,26 @@ export const AIAssistant = () => {
                 <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-lg font-semibold">MAIA Assistant</h3>
                   <p className="text-sm text-muted-foreground font-normal">
                     Assistant IA pour {selectedMachineData?.name}
                   </p>
                 </div>
-                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-success/10 text-success rounded-full">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                  <span className="text-xs font-medium">En ligne</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteChat}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer le chat
+                  </Button>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-success/10 text-success rounded-full">
+                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium">En ligne</span>
+                  </div>
                 </div>
               </CardTitle>
             </CardHeader>

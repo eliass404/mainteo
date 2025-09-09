@@ -113,6 +113,35 @@ export const useAIChat = () => {
     } catch (_) {}
   };
 
+  const deleteChatForMachine = async (machineId: string) => {
+    try {
+      // Delete all chat messages from database for this machine
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('machine_id', machineId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Clear localStorage for this machine
+      try {
+        localStorage.removeItem(`aiChat.messages.${machineId}`);
+      } catch (_) {}
+      
+      // If this is the current machine, also clear the current chat
+      if (currentMachineId === machineId) {
+        setChatMessages([]);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      return { success: false, error };
+    }
+  };
+
   const resetChatForMachine = (machineId: string) => {
     // Clear localStorage for this machine
     try {
@@ -210,6 +239,7 @@ export const useAIChat = () => {
     isLoading,
     sendMessage,
     clearChat,
+    deleteChatForMachine,
     resetChatForMachine,
     initializeChat,
     loadChatHistory,
