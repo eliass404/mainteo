@@ -29,7 +29,13 @@ export const useAIChat = () => {
 
       const msgs = (data as ChatMessage[]) || [];
       setChatMessages(msgs);
-      try { localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs)); } catch (_) {}
+      try {
+        if (msgs.length > 0) {
+          localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs));
+        } else {
+          localStorage.removeItem(`aiChat.messages.${machineId}`);
+        }
+      } catch (_) {}
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
@@ -128,6 +134,7 @@ export const useAIChat = () => {
   const initializeChat = async (machineId: string, machineName: string, options?: { reset?: boolean }) => {
     setIsLoading(true);
     setCurrentMachineId(machineId);
+    let usedLocalCache = false;
 
     // Check if we should force reset (from options or a persisted flag)
     let forceReset = !!options?.reset;
@@ -158,25 +165,25 @@ export const useAIChat = () => {
       return;
     }
 
-    // Try local cache first
+    // Try local cache first (but we'll still verify with server and discard if empty on server)
     try {
       const saved = localStorage.getItem(`aiChat.messages.${machineId}`);
       if (saved) {
         setChatMessages(JSON.parse(saved));
-        setIsLoading(false);
-        return;
+        usedLocalCache = true;
       }
     } catch (_) {}
 
-    setChatMessages([]);
+    if (!usedLocalCache) {
+      setChatMessages([]);
+      // Add loading message
+      setChatMessages([{
+        role: 'assistant',
+        content: `🔄 Initialisation de MAIA pour la machine ${machineName}...\n\nAnalyse des documents techniques en cours...`
+      }]);
+    }
 
-    // Add loading message
-    setChatMessages([{
-      role: 'assistant',
-      content: `🔄 Initialisation de MAIA pour la machine ${machineName}...\n\nAnalyse des documents techniques en cours...`
-    }]);
-
-    // Load existing chat history
+    // Load existing chat history from server to ensure cache is not stale
     await loadChatHistory(machineId);
 
     // If no existing messages, add welcome message
@@ -187,6 +194,7 @@ export const useAIChat = () => {
       .limit(1);
 
     if (!existingMessages || existingMessages.length === 0) {
+      try { localStorage.removeItem(`aiChat.messages.${machineId}`); } catch (_) {}
       setTimeout(() => {
         setChatMessages(prev => {
           // Remove loading message and add welcome
