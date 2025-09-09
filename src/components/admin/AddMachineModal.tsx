@@ -52,8 +52,13 @@ export const AddMachineModal = () => {
     if (!pdfFile) return null;
 
     try {
+      console.log('Starting PDF upload for machine:', machineId);
+      console.log('File details:', { name: pdfFile.name, size: pdfFile.size, type: pdfFile.type });
+      
       const fileExt = pdfFile.name.split('.').pop();
       const fileName = `${machineId}/manual.${fileExt}`;
+      
+      console.log('Uploading to:', fileName);
       
       const { data, error } = await supabase.storage
         .from('manuals')
@@ -62,14 +67,18 @@ export const AddMachineModal = () => {
           upsert: true
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
       
+      console.log('Upload successful:', data);
       return fileName;
     } catch (error: any) {
       console.error('Error uploading PDF:', error);
       toast({
         title: "Erreur d'upload",
-        description: "Impossible d'uploader le fichier PDF",
+        description: error.message || "Impossible d'uploader le fichier PDF",
         variant: "destructive"
       });
       return null;
