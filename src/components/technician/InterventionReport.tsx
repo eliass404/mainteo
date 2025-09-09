@@ -127,7 +127,7 @@ export const InterventionReport = () => {
 
       // Si l'intervention est finalisée, reset le chat de la machine
       if (isFinalized && selectedMachine) {
-        localStorage.removeItem(`chat_${selectedMachine}`);
+        localStorage.removeItem(`aiChat.messages.${selectedMachine}`);
       }
 
       // Reset form

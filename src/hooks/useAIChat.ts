@@ -113,6 +113,18 @@ export const useAIChat = () => {
     } catch (_) {}
   };
 
+  const resetChatForMachine = (machineId: string) => {
+    // Clear localStorage for this machine
+    try {
+      localStorage.removeItem(`aiChat.messages.${machineId}`);
+    } catch (_) {}
+    
+    // If this is the current machine, also clear the current chat
+    if (currentMachineId === machineId) {
+      setChatMessages([]);
+    }
+  };
+
   const initializeChat = async (machineId: string, machineName: string) => {
     setIsLoading(true);
     setCurrentMachineId(machineId);
@@ -169,6 +181,7 @@ export const useAIChat = () => {
     isLoading,
     sendMessage,
     clearChat,
+    resetChatForMachine,
     initializeChat,
     loadChatHistory,
   };
