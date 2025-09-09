@@ -18,7 +18,8 @@ import {
   Calendar,
   MapPin,
   Wrench,
-  FileCheck
+  FileCheck,
+  Download
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -174,6 +175,48 @@ export const TechnicianDashboard = () => {
     }
   };
 
+  const downloadManual = async (machineId: string, machineName: string) => {
+    const machine = userMachines.find(m => m.id === machineId);
+    if (!machine?.manual_url) {
+      toast({
+        title: "Manuel non disponible",
+        description: "Aucun manuel PDF n'est disponible pour cette machine",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('manuals')
+        .download(machine.manual_url);
+
+      if (error) throw error;
+
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Manuel_${machineName.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Téléchargement réussi",
+        description: "Le manuel a été téléchargé avec succès"
+      });
+    } catch (error: any) {
+      console.error('Error downloading manual:', error);
+      toast({
+        title: "Erreur de téléchargement",
+        description: "Impossible de télécharger le manuel",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'operational':
@@ -270,13 +313,25 @@ export const TechnicianDashboard = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <FileCheck className="w-3 h-3" />
-                        {selectedMachineData.manual_url && selectedMachineData.notice_url 
-                          ? "Manuel + Notice disponibles"
-                          : selectedMachineData.manual_url 
-                            ? "Manuel disponible" 
-                            : selectedMachineData.notice_url
-                              ? "Notice disponible"
-                              : "Aucun document"}
+                        <span className="text-xs">
+                          {selectedMachineData.manual_url && selectedMachineData.notice_url 
+                            ? "Manuel + Notice disponibles"
+                            : selectedMachineData.manual_url 
+                              ? "Manuel disponible" 
+                              : selectedMachineData.notice_url
+                                ? "Notice disponible"
+                                : "Aucun document"}
+                        </span>
+                        {selectedMachineData.manual_url && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => downloadManual(selectedMachineData.id, selectedMachineData.name)}
+                            className="h-6 px-2"
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

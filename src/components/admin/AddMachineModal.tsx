@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Upload, FileText, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,9 @@ export const AddMachineModal = () => {
     serialNumber: "",
     manualContent: ""
   });
+
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
 
@@ -45,18 +48,49 @@ export const AddMachineModal = () => {
   };
 
 
+  const uploadPdf = async (machineId: string): Promise<string | null> => {
+    if (!pdfFile) return null;
+
+    try {
+      const fileExt = pdfFile.name.split('.').pop();
+      const fileName = `${machineId}/manual.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('manuals')
+        .upload(fileName, pdfFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+      
+      return fileName;
+    } catch (error: any) {
+      console.error('Error uploading PDF:', error);
+      toast({
+        title: "Erreur d'upload",
+        description: "Impossible d'uploader le fichier PDF",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
 
     const finalType = formData.type === "__add_new__" ? formData.customType : formData.type;
 
     if (!formData.name || !finalType || !formData.location) {
       toast({ title: 'Champs manquants', description: 'Veuillez remplir tous les champs requis.', variant: 'destructive' });
+      setUploading(false);
       return;
     }
 
     if (!formData.manualContent.trim()) {
       toast({ title: 'Manuel requis', description: 'Le contenu du manuel d\'utilisation est obligatoire.', variant: 'destructive' });
+      setUploading(false);
       return;
     }
 
@@ -77,7 +111,18 @@ export const AddMachineModal = () => {
           description: 'Une machine avec ce nom existe déjà à cet emplacement.', 
           variant: 'destructive' 
         });
+        setUploading(false);
         return;
+      }
+
+      // Upload PDF if provided
+      let manualUrl = null;
+      if (pdfFile) {
+        manualUrl = await uploadPdf(machineId);
+        if (!manualUrl) {
+          setUploading(false);
+          return;
+        }
       }
 
       const { error: insertError } = await supabase.from('machines').insert({
@@ -86,7 +131,8 @@ export const AddMachineModal = () => {
         type: finalType,
         location: formData.location,
         serial_number: formData.serialNumber,
-        manual_content: formData.manualContent
+        manual_content: formData.manualContent,
+        manual_url: manualUrl
       });
 
       if (insertError) throw insertError;
@@ -94,11 +140,14 @@ export const AddMachineModal = () => {
       toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
       setOpen(false);
       setFormData({ name: '', type: '', customType: '', location: '', serialNumber: '', manualContent: '' });
+      setPdfFile(null);
       
       // Refresh the page to update the machines list
       window.location.reload();
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message || 'Impossible de créer la machine', variant: 'destructive' });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -171,6 +220,60 @@ export const AddMachineModal = () => {
             />
           </div>
 
+          {/* Upload de fichier PDF */}
+          <div className="space-y-2">
+            <Label htmlFor="pdfFile">Manuel PDF (optionnel)</Label>
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
+              {!pdfFile ? (
+                <div className="text-center">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Glissez-déposez un fichier PDF ou cliquez pour sélectionner
+                  </p>
+                  <Input
+                    id="pdfFile"
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && file.type === 'application/pdf') {
+                        setPdfFile(file);
+                      } else {
+                        toast({
+                          title: "Format invalide",
+                          description: "Veuillez sélectionner un fichier PDF",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    className="cursor-pointer"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <span className="text-sm font-medium">{pdfFile.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPdfFile(null)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Le fichier PDF sera accessible aux techniciens pour téléchargement depuis leur interface.
+            </p>
+          </div>
+
           {/* Manuel technique en texte */}
           <div className="space-y-2">
             <Label htmlFor="manualContent">Manuel technique *</Label>
@@ -191,8 +294,15 @@ export const AddMachineModal = () => {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit">
-              Ajouter la machine
+            <Button type="submit" disabled={uploading}>
+              {uploading ? (
+                <>
+                  <Upload className="w-4 h-4 mr-2 animate-spin" />
+                  Ajout en cours...
+                </>
+              ) : (
+                "Ajouter la machine"
+              )}
             </Button>
           </div>
         </form>
