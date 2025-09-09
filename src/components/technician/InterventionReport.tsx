@@ -110,7 +110,7 @@ export const InterventionReport = () => {
           machine_id: selectedMachine,
           technician_id: profile!.user_id,
           description: interventionReport.description,
-          actions_taken: interventionReport.actions,
+          actions: interventionReport.actions,
           parts_used: interventionReport.parts_used || null,
           time_spent: interventionReport.time_spent ? parseFloat(interventionReport.time_spent) : null,
           status: reportStatus
