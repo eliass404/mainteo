@@ -174,7 +174,9 @@ export const AIAssistant = () => {
                 <SelectValue placeholder={loadingMachines ? "Chargement..." : "Choisir une machine"} />
               </SelectTrigger>
               <SelectContent>
-                {userMachines.map((machine) => (
+                {userMachines
+                  .filter(machine => machine.id && machine.id.trim() !== '')
+                  .map((machine) => (
                   <SelectItem key={machine.id} value={machine.id}>
                     {machine.name} - {machine.type}
                   </SelectItem>

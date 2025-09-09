@@ -278,7 +278,9 @@ export const TechnicianDashboard = () => {
                       <SelectValue placeholder="Sélectionner une machine" />
                     </SelectTrigger>
                     <SelectContent>
-                      {userMachines.map((machine) => (
+                      {userMachines
+                        .filter(machine => machine.id && machine.id.trim() !== '')
+                        .map((machine) => (
                         <SelectItem key={machine.id} value={machine.id}>
                           <div className="flex items-center gap-2">
                             <span>{machine.id} - {machine.name}</span>
