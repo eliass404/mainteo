@@ -49,7 +49,7 @@ export const AddMachineModal = () => {
       
       if (error) throw error;
       
-      const uniqueTypes = [...new Set(data?.map(m => m.type) || [])];
+      const uniqueTypes = [...new Set((data?.map(m => m.type?.trim()) || []).filter((t): t is string => !!t && t.length > 0))];
       setMachineTypes(uniqueTypes);
     } catch (error) {
       console.error('Error loading machine types:', error);
