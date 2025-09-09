@@ -117,10 +117,12 @@ export const TechnicianDashboard = () => {
     setInputMessage("");
   };
 
-  const handleSaveReport = async () => {
+  const handleSaveReport = async (isFinalized: boolean = false) => {
     if (!selectedMachine || !profile) return;
 
     try {
+      const reportStatus = isFinalized ? "termine" : "brouillon";
+      
       const { error } = await supabase
         .from('intervention_reports')
         .insert({
@@ -130,7 +132,7 @@ export const TechnicianDashboard = () => {
           actions: interventionReport.actions,
           parts_used: interventionReport.parts_used,
           time_spent: parseFloat(interventionReport.time_spent) || null,
-          status: interventionReport.status
+          status: reportStatus
         });
 
       if (error) {
@@ -138,9 +140,21 @@ export const TechnicianDashboard = () => {
       }
 
       toast({
-        title: "Succès",
-        description: "Rapport d'intervention sauvegardé",
+        title: isFinalized ? "Intervention finalisée" : "Brouillon sauvegardé",
+        description: isFinalized 
+          ? "L'intervention a été finalisée avec succès." 
+          : "Le brouillon a été sauvegardé avec succès.",
       });
+
+      // Si l'intervention est finalisée, reset le chat de la machine
+      if (isFinalized && selectedMachine) {
+        localStorage.removeItem(`chat_${selectedMachine}`);
+        // Réinitialiser le chat pour cette machine
+        const machine = userMachines.find(m => m.id === selectedMachine);
+        if (machine) {
+          await initializeChat(selectedMachine, machine.name);
+        }
+      }
 
       // Reset form
       setInterventionReport({
@@ -401,7 +415,7 @@ export const TechnicianDashboard = () => {
                     <div className="flex gap-4">
                       <Button 
                         className="flex-1"
-                        onClick={() => setInterventionReport({...interventionReport, status: 'termine'})}
+                        onClick={() => handleSaveReport(true)}
                         disabled={!interventionReport.description.trim()}
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
@@ -410,7 +424,7 @@ export const TechnicianDashboard = () => {
                       <Button 
                         variant="outline" 
                         className="flex-1"
-                        onClick={handleSaveReport}
+                        onClick={() => handleSaveReport(false)}
                         disabled={!interventionReport.description.trim()}
                       >
                         <FileText className="w-4 h-4 mr-2" />

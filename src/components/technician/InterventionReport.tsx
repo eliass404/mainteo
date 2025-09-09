@@ -82,7 +82,7 @@ export const InterventionReport = () => {
     }
   };
 
-  const handleSaveReport = async () => {
+  const handleSaveReport = async (isFinalized: boolean = false) => {
     if (!selectedMachine) {
       toast({
         title: "Erreur",
@@ -102,6 +102,8 @@ export const InterventionReport = () => {
     }
 
     try {
+      const reportStatus = isFinalized ? "termine" : "brouillon";
+      
       const { error } = await supabase
         .from('intervention_reports')
         .insert({
@@ -111,15 +113,22 @@ export const InterventionReport = () => {
           actions_taken: interventionReport.actions,
           parts_used: interventionReport.parts_used || null,
           time_spent: interventionReport.time_spent ? parseFloat(interventionReport.time_spent) : null,
-          status: interventionReport.status
+          status: reportStatus
         });
 
       if (error) throw error;
 
       toast({
-        title: "Rapport sauvegardé",
-        description: "Le rapport d'intervention a été sauvegardé avec succès.",
+        title: isFinalized ? "Intervention finalisée" : "Brouillon sauvegardé",
+        description: isFinalized 
+          ? "L'intervention a été finalisée avec succès." 
+          : "Le brouillon a été sauvegardé avec succès.",
       });
+
+      // Si l'intervention est finalisée, reset le chat de la machine
+      if (isFinalized && selectedMachine) {
+        localStorage.removeItem(`chat_${selectedMachine}`);
+      }
 
       // Reset form
       setInterventionReport({
@@ -280,7 +289,7 @@ export const InterventionReport = () => {
 
             <div className="flex gap-4 pt-4">
               <Button 
-                onClick={handleSaveReport}
+                onClick={() => handleSaveReport(true)}
                 className="flex-1"
                 disabled={!interventionReport.description.trim()}
               >
@@ -289,10 +298,7 @@ export const InterventionReport = () => {
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setInterventionReport(prev => ({...prev, status: "brouillon"}));
-                  handleSaveReport();
-                }}
+                onClick={() => handleSaveReport(false)}
                 disabled={!interventionReport.description.trim()}
               >
                 <FileText className="w-4 h-4 mr-2" />
