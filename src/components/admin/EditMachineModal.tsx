@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { Upload, FileText, X, Download } from "lucide-react";
 
 interface Machine {
   id: string;
@@ -17,6 +18,7 @@ interface Machine {
   description?: string;
   serial_number?: string;
   manual_content?: string;
+  manual_url?: string;
 }
 
 interface EditMachineModalProps {
@@ -39,6 +41,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
   
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,6 +56,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
         serial_number: machine.serial_number || "",
         manual_content: machine.manual_content || ""
       });
+      setCurrentPdfUrl(machine.manual_url || null);
+      setPdfFile(null);
     }
   }, [machine]);
 
@@ -77,12 +83,85 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     }
   };
 
+  const uploadPdf = async (machineId: string): Promise<string | null> => {
+    if (!pdfFile) return null;
+
+    try {
+      const fileExt = pdfFile.name.split('.').pop();
+      const fileName = `${machineId}/manual.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('manuals')
+        .upload(fileName, pdfFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+      
+      return fileName;
+    } catch (error: any) {
+      console.error('Error uploading PDF:', error);
+      toast({
+        title: "Erreur d'upload",
+        description: "Impossible d'uploader le fichier PDF",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const downloadCurrentManual = async () => {
+    if (!currentPdfUrl || !machine) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('manuals')
+        .download(currentPdfUrl);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Manuel_${machine.name.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Téléchargement réussi",
+        description: "Le manuel a été téléchargé avec succès"
+      });
+    } catch (error: any) {
+      console.error('Error downloading manual:', error);
+      toast({
+        title: "Erreur de téléchargement",
+        description: "Impossible de télécharger le manuel",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!machine) return;
 
     setLoading(true);
     try {
+      // Upload new PDF if provided
+      let manualUrl = currentPdfUrl;
+      if (pdfFile) {
+        const uploadedUrl = await uploadPdf(machine.id);
+        if (uploadedUrl) {
+          manualUrl = uploadedUrl;
+        } else {
+          setLoading(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('machines')
         .update({
@@ -92,7 +171,8 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
           status: formData.status,
           description: formData.description || null,
           serial_number: formData.serial_number || null,
-          manual_content: formData.manual_content || null
+          manual_content: formData.manual_content || null,
+          manual_url: manualUrl
         })
         .eq('id', machine.id);
 
@@ -195,6 +275,86 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
             />
           </div>
 
+          {/* Upload de fichier PDF */}
+          <div className="space-y-2">
+            <Label htmlFor="pdfFile">Manuel PDF</Label>
+            
+            {/* Affichage du manuel actuel s'il existe */}
+            {currentPdfUrl && !pdfFile && (
+              <div className="p-3 border rounded-lg bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Manuel PDF actuel</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadCurrentManual}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Télécharger
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Upload d'un nouveau fichier */}
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
+              {!pdfFile ? (
+                <div className="text-center">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {currentPdfUrl ? "Remplacer le manuel PDF" : "Glissez-déposez un fichier PDF ou cliquez pour sélectionner"}
+                  </p>
+                  <Input
+                    id="pdfFile"
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && file.type === 'application/pdf') {
+                        setPdfFile(file);
+                      } else {
+                        toast({
+                          title: "Format invalide",
+                          description: "Veuillez sélectionner un fichier PDF",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    className="cursor-pointer"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <span className="text-sm font-medium">{pdfFile.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPdfFile(null)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Le fichier PDF sera accessible aux techniciens pour téléchargement depuis leur interface.
+            </p>
+          </div>
+
+          {/* Manuel technique en texte */}
           <div className="space-y-2">
             <Label htmlFor="manual_content">Manuel technique</Label>
             <Textarea
@@ -214,7 +374,14 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
               Annuler
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Mise à jour..." : "Mettre à jour"}
+              {loading ? (
+                <>
+                  <Upload className="w-4 h-4 mr-2 animate-spin" />
+                  Mise à jour...
+                </>
+              ) : (
+                "Mettre à jour"
+              )}
             </Button>
           </div>
         </form>
