@@ -242,6 +242,33 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
     }
   };
 
+  const handleBulkDeleteTechnicians = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-bulk-delete-technicians', {
+        body: {},
+      });
+
+      if (error || !data?.ok) {
+        throw new Error(error?.message || data?.error || 'Suppression échouée');
+      }
+
+      toast({
+        title: 'Techniciens supprimés',
+        description: `${data.deleted_count || 0} technicien(s) supprimé(s).`,
+      });
+
+      await loadUsers();
+      await loadStats();
+    } catch (error: any) {
+      console.error('Error bulk deleting technicians:', error);
+      toast({
+        title: 'Erreur',
+        description: error.message || 'Impossible de supprimer les techniciens',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Stats Cards */}
@@ -434,7 +461,29 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Utilisateurs</CardTitle>
-            <AddUserModal onUserCreated={loadUsers} />
+            <div className="flex items-center gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    Supprimer tous les techniciens
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmer la suppression en masse</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action supprimera définitivement tous vos techniciens et toutes leurs données associées (messages, rapports, activité). Cette action est irréversible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDeleteTechnicians}>Supprimer</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AddUserModal onUserCreated={loadUsers} />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
