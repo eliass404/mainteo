@@ -218,54 +218,26 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // 1) Supprimer d'abord les messages du chat associés
-      const { error: chatErr } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('technician_id', userId);
-      if (chatErr) throw chatErr;
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: userId },
+      });
 
-      // 2) Supprimer les rapports d'intervention liés
-      const { error: reportsError } = await supabase
-        .from('intervention_reports')
-        .delete()
-        .eq('technician_id', userId);
-      if (reportsError) throw reportsError;
-
-      // 3) Supprimer l'activité du technicien
-      const { error: activityErr } = await supabase
-        .from('technician_activity')
-        .delete()
-        .eq('user_id', userId);
-      if (activityErr) throw activityErr;
-
-      // 4) Supprimer le profil utilisateur
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId);
-      if (profileError) throw profileError;
-
-      // 5) Tentative (best-effort) de suppression de l'utilisateur auth
-      try {
-        const { error: authError } = await (supabase as any).auth.admin.deleteUser(userId);
-        if (authError) console.warn('Auth user deletion failed (expected on client):', authError);
-      } catch (e) {
-        console.warn('Auth admin delete not available on client:', e);
+      if (error || !data?.ok) {
+        throw new Error(error?.message || data?.error || 'Suppression échouée');
       }
 
       toast({
-        title: "Utilisateur supprimé",
+        title: 'Utilisateur supprimé',
         description: "L'utilisateur et ses données associées ont été supprimés.",
       });
 
-      loadUsers(); // Refresh users list
+      loadUsers();
     } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
-        title: "Erreur",
+        title: 'Erreur',
         description: error.message || "Impossible de supprimer l'utilisateur",
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
