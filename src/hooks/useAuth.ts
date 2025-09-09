@@ -65,10 +65,11 @@ export const useAuth = () => {
         const userRole = user?.user_metadata?.role || 'technicien';
         const userUsername = user?.user_metadata?.username || (email ? email.split('@')[0] : 'utilisateur');
         
-        // Create a profile using the role from signup metadata
+        // Create a profile using the role from signup metadata (force non-admin by default)
+        const normalizedRole: 'admin' | 'technicien' = (userRole === 'admin') ? 'technicien' : userRole;
         const { data: created, error: insertError } = await supabase
           .from('profiles')
-          .insert({ user_id: userId, username: userUsername, role: userRole, email: email })
+          .insert({ user_id: userId, username: userUsername, role: normalizedRole, email: email })
           .select('*')
           .single();
         if (insertError) {

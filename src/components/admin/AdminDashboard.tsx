@@ -214,33 +214,45 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // Première étape : supprimer les rapports d'intervention liés
+      // 1) Supprimer d'abord les messages du chat associés
+      const { error: chatErr } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('technician_id', userId);
+      if (chatErr) throw chatErr;
+
+      // 2) Supprimer les rapports d'intervention liés
       const { error: reportsError } = await supabase
         .from('intervention_reports')
         .delete()
         .eq('technician_id', userId);
-
       if (reportsError) throw reportsError;
 
-      // Deuxième étape : supprimer le profil utilisateur
+      // 3) Supprimer l'activité du technicien
+      const { error: activityErr } = await supabase
+        .from('technician_activity')
+        .delete()
+        .eq('user_id', userId);
+      if (activityErr) throw activityErr;
+
+      // 4) Supprimer le profil utilisateur
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('user_id', userId);
-
       if (profileError) throw profileError;
 
-      // Troisième étape : supprimer l'utilisateur de l'auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      
-      if (authError) {
-        console.warn('Auth user deletion failed:', authError);
-        // Ne pas bloquer si la suppression auth échoue
+      // 5) Tentative (best-effort) de suppression de l'utilisateur auth
+      try {
+        const { error: authError } = await (supabase as any).auth.admin.deleteUser(userId);
+        if (authError) console.warn('Auth user deletion failed (expected on client):', authError);
+      } catch (e) {
+        console.warn('Auth admin delete not available on client:', e);
       }
 
       toast({
         title: "Utilisateur supprimé",
-        description: "L'utilisateur et toutes ses données ont été supprimés avec succès.",
+        description: "L'utilisateur et ses données associées ont été supprimés.",
       });
 
       loadUsers(); // Refresh users list
