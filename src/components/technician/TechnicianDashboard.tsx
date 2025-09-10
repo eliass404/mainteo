@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const TechnicianDashboard = () => {
   const { profile } = useAuth();
   const { getUserMachines } = useMachines();
-  const { chatMessages, isLoading, sendMessage, initializeChat, resetChatForMachine } = useAIChat();
+  const { chatMessages, isLoading, sendMessage, initializeChat } = useAIChat();
   const { toast } = useToast();
   
   const [userMachines, setUserMachines] = useState<any[]>([]);
@@ -150,7 +150,6 @@ export const TechnicianDashboard = () => {
       // Si l'intervention est finalisée, reset le chat de la machine
       if (isFinalized && selectedMachine) {
         try { localStorage.setItem(`aiChat.reset.${selectedMachine}`, 'true'); } catch (_) {}
-        resetChatForMachine(selectedMachine);
         // Réinitialiser le chat pour cette machine (session neuve)
         const machine = userMachines.find(m => m.id === selectedMachine);
         if (machine) {

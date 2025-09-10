@@ -1,75 +1,187 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ChatMessage {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
   created_at?: string;
+  machine_id?: string;
+  status?: 'sending' | 'sent' | 'error';
 }
 
 export const useAIChat = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [currentMachineId, setCurrentMachineId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadChatHistory = async (machineId: string) => {
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages, scrollToBottom]);
+
+  // Real-time subscription for chat updates
+  useEffect(() => {
+    if (!currentMachineId) return;
+
+    const channel = supabase
+      .channel(`chat-${currentMachineId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `machine_id=eq.${currentMachineId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          setChatMessages(prev => {
+            const exists = prev.some(msg => msg.id === newMessage.id);
+            if (exists) return prev;
+            return [...prev, newMessage];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentMachineId]);
+
+  const loadChatHistory = useCallback(async (machineId: string) => {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('role, content, created_at')
+        .select('id, role, content, created_at, machine_id')
         .eq('machine_id', machineId)
         .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error loading chat history:', error);
-        return;
+        return [];
       }
 
       const msgs = (data as ChatMessage[]) || [];
       setChatMessages(msgs);
-      try { localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs)); } catch (_) {}
+      
+      // Cache in localStorage with debouncing
+      try { 
+        localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs)); 
+      } catch (_) {}
+      
+      return msgs;
     } catch (error) {
       console.error('Error loading chat history:', error);
+      return [];
     }
-  };
+  }, []);
 
-  const sendMessage = async (message: string, machineId: string) => {
-    if (!message.trim()) return;
+  const saveMessageToDatabase = useCallback(async (message: ChatMessage, machineId: string) => {
+    if (!profile?.user_id) return null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          role: message.role,
+          content: message.content,
+          machine_id: machineId,
+          technician_id: profile.user_id,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error saving message:', error);
+      return null;
+    }
+  }, [profile?.user_id]);
+
+  const sendMessage = useCallback(async (message: string, machineId: string) => {
+    if (!message.trim() || isLoading) return;
+
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
+    setIsTyping(false);
     
-    // Add user message to UI immediately
-    const userMessage: ChatMessage = { role: 'user', content: message };
+    // Create optimistic user message
+    const tempUserMessage: ChatMessage = { 
+      id: `temp-${Date.now()}`,
+      role: 'user', 
+      content: message,
+      status: 'sending',
+      created_at: new Date().toISOString()
+    };
+
+    // Add user message to UI immediately with animation
     setChatMessages(prev => {
-      const updated = [...prev, userMessage];
+      const updated = [...prev, tempUserMessage];
       try {
-        const key = `aiChat.messages.${currentMachineId || machineId}`;
-        localStorage.setItem(key, JSON.stringify(updated));
+        localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(updated));
       } catch (_) {}
       return updated;
     });
 
     try {
+      // Save user message to database
+      const savedUserMessage = await saveMessageToDatabase(tempUserMessage, machineId);
+      
+      // Update message status to sent
+      setChatMessages(prev => prev.map(msg => 
+        msg.id === tempUserMessage.id 
+          ? { ...msg, status: 'sent', id: savedUserMessage?.id || msg.id }
+          : msg
+      ));
+
+      // Show typing indicator
+      setIsTyping(true);
+
+      // Call AI assistant with abort signal
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { message, machineId }
       });
 
-      if (error) {
-        throw error;
-      }
+      setIsTyping(false);
 
-      // Add assistant response to UI
+      if (error) throw error;
+
+      // Create assistant response with smooth reveal
       const assistantMessage: ChatMessage = { 
+        id: `assistant-${Date.now()}`,
         role: 'assistant', 
-        content: data.message || data.fallbackMessage 
+        content: data.message || data.fallbackMessage,
+        created_at: new Date().toISOString()
       };
+
+      // Save assistant message to database
+      const savedAssistantMessage = await saveMessageToDatabase(assistantMessage, machineId);
+
+      // Add assistant response with animation
       setChatMessages(prev => {
-        const updated = [...prev, assistantMessage];
+        const updated = [...prev, { ...assistantMessage, id: savedAssistantMessage?.id || assistantMessage.id }];
         try {
-          const key = `aiChat.messages.${currentMachineId || machineId}`;
-          localStorage.setItem(key, JSON.stringify(updated));
+          localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(updated));
         } catch (_) {}
         return updated;
       });
@@ -78,42 +190,57 @@ export const useAIChat = () => {
         console.log('Machine info:', data.machineInfo);
       }
 
-      // persist after assistant response is added above
-    } catch (error) {
+    } catch (error: any) {
+      setIsTyping(false);
+      
+      if (error.name === 'AbortError') {
+        return; // Request was cancelled
+      }
+
       console.error('Error sending message:', error);
       
+      // Mark user message as error
+      setChatMessages(prev => prev.map(msg => 
+        msg.id === tempUserMessage.id 
+          ? { ...msg, status: 'error' }
+          : msg
+      ));
+
       // Add error message
       const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
         role: 'assistant',
-        content: "Désolé, je rencontre des difficultés techniques. Veuillez réessayer."
+        content: "❌ Désolé, je rencontre des difficultés techniques. Veuillez réessayer dans quelques instants.",
+        created_at: new Date().toISOString()
       };
+      
       setChatMessages(prev => {
         const updated = [...prev, errorMessage];
         try {
-          const key = `aiChat.messages.${currentMachineId || machineId}`;
-          localStorage.setItem(key, JSON.stringify(updated));
+          localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(updated));
         } catch (_) {}
         return updated;
       });
 
       toast({
-        title: "Erreur",
-        description: "Impossible de contacter l'assistant IA",
+        title: "Erreur de connexion",
+        description: "Impossible de contacter l'assistant IA. Vérifiez votre connexion.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  };
+  }, [isLoading, saveMessageToDatabase, toast]);
 
-  const clearChat = () => {
+  const clearChat = useCallback(() => {
     setChatMessages([]);
     try {
       if (currentMachineId) localStorage.removeItem(`aiChat.messages.${currentMachineId}`);
     } catch (_) {}
-  };
+  }, [currentMachineId]);
 
-  const deleteChatForMachine = async (machineId: string) => {
+  const deleteChatForMachine = useCallback(async (machineId: string) => {
     try {
       // Delete all chat messages from database for this machine
       const { error } = await supabase
@@ -121,9 +248,7 @@ export const useAIChat = () => {
         .delete()
         .eq('machine_id', machineId);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       // Clear localStorage for this machine
       try {
@@ -140,25 +265,19 @@ export const useAIChat = () => {
       console.error('Error deleting chat:', error);
       return { success: false, error };
     }
-  };
+  }, [currentMachineId]);
 
-  const resetChatForMachine = (machineId: string) => {
-    // Clear localStorage for this machine
-    try {
-      localStorage.removeItem(`aiChat.messages.${machineId}`);
-    } catch (_) {}
-    
-    // If this is the current machine, also clear the current chat
-    if (currentMachineId === machineId) {
-      setChatMessages([]);
+  const initializeChat = useCallback(async (machineId: string, machineName: string, options?: { reset?: boolean }) => {
+    // Cancel any pending operations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  };
 
-  const initializeChat = async (machineId: string, machineName: string, options?: { reset?: boolean }) => {
     setIsLoading(true);
+    setIsTyping(false);
     setCurrentMachineId(machineId);
 
-    // Check if we should force reset (from options or a persisted flag)
+    // Check if we should force reset
     let forceReset = !!options?.reset;
     try {
       const resetFlag = localStorage.getItem(`aiChat.reset.${machineId}`);
@@ -170,78 +289,97 @@ export const useAIChat = () => {
 
     if (forceReset) {
       try { localStorage.removeItem(`aiChat.messages.${machineId}`); } catch (_) {}
-      // Show fresh welcome sequence without loading previous history
+      
+      // Show initialization sequence
       setChatMessages([{
+        id: 'init-loading',
         role: 'assistant',
-        content: `🔄 Initialisation de MAIA pour la machine ${machineName}...\n\nAnalyse des documents techniques en cours...`
+        content: '🔄 **Initialisation de MAIA...**\n\nConnexion à la machine **' + machineName + '**\nAnalyse des documents techniques...',
+        created_at: new Date().toISOString()
       }]);
+
+      // Smooth transition to welcome message
       setTimeout(() => {
-        const welcome = [{
+        const welcomeMessage = {
+          id: 'welcome',
           role: 'assistant' as const,
-          content: `✅ **MAIA** est maintenant connectée à la machine **${machineName}**.\n\n🤖 Je suis votre assistante IA spécialisée en maintenance industrielle. J'ai analysé les documents techniques disponibles pour cette machine.\n\n💡 **Comment puis-je vous aider ?**\n- Diagnostic de pannes\n- Procédures de maintenance\n- Identification de pièces détachées\n- Consignes de sécurité\n\nN'hésitez pas à me décrire le problème ou à me poser vos questions !`
-        }];
-        setChatMessages(welcome);
-        try { localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(welcome)); } catch (_) {}
+          content: `✅ **MAIA** est maintenant connectée à la machine **${machineName}**.\n\n🤖 Je suis votre assistante IA spécialisée en maintenance industrielle. J'ai analysé les documents techniques disponibles pour cette machine.\n\n💡 **Comment puis-je vous aider ?**\n- 🔧 Diagnostic de pannes\n- 🛠️ Procédures de maintenance\n- 📦 Identification de pièces détachées\n- ⚠️ Consignes de sécurité\n\nN'hésitez pas à me décrire le problème ou à me poser vos questions !`,
+          created_at: new Date().toISOString()
+        };
+        
+        setChatMessages([welcomeMessage]);
+        try { 
+          localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify([welcomeMessage])); 
+        } catch (_) {}
         setIsLoading(false);
-      }, 1000);
+      }, 1500);
       return;
     }
 
-    // Try local cache first
+    // Try to load from cache first for instant loading
     try {
-      const saved = localStorage.getItem(`aiChat.messages.${machineId}`);
-      if (saved) {
-        setChatMessages(JSON.parse(saved));
+      const cached = localStorage.getItem(`aiChat.messages.${machineId}`);
+      if (cached) {
+        const cachedMessages = JSON.parse(cached);
+        setChatMessages(cachedMessages);
         setIsLoading(false);
+        
+        // Refresh from database in background
+        loadChatHistory(machineId);
         return;
       }
     } catch (_) {}
 
-    setChatMessages([]);
+    // Load from database
+    const messages = await loadChatHistory(machineId);
 
-    // Add loading message
-    setChatMessages([{
-      role: 'assistant',
-      content: `🔄 Initialisation de MAIA pour la machine ${machineName}...\n\nAnalyse des documents techniques en cours...`
-    }]);
+    // If no existing messages, show welcome
+    if (messages.length === 0) {
+      setChatMessages([{
+        id: 'init-loading',
+        role: 'assistant',
+        content: '🔄 **Initialisation de MAIA...**\n\nConnexion à la machine **' + machineName + '**\nAnalyse des documents techniques...',
+        created_at: new Date().toISOString()
+      }]);
 
-    // Load existing chat history
-    await loadChatHistory(machineId);
-
-    // If no existing messages, add welcome message
-    const { data: existingMessages } = await supabase
-      .from('chat_messages')
-      .select('id')
-      .eq('machine_id', machineId)
-      .limit(1);
-
-    if (!existingMessages || existingMessages.length === 0) {
       setTimeout(() => {
-        setChatMessages(prev => {
-          // Remove loading message and add welcome
-          const filtered = prev.filter(msg => !msg.content.includes('🔄'));
-          return [...filtered, {
-            role: 'assistant',
-            content: `✅ **MAIA** est maintenant connectée à la machine **${machineName}**.\n\n🤖 Je suis votre assistante IA spécialisée en maintenance industrielle. J'ai analysé les documents techniques disponibles pour cette machine.\n\n💡 **Comment puis-je vous aider ?**\n- Diagnostic de pannes\n- Procédures de maintenance\n- Identification de pièces détachées\n- Consignes de sécurité\n\nN'hésitez pas à me décrire le problème ou à me poser vos questions !`
-          }];
-        });
+        const welcomeMessage = {
+          id: 'welcome',
+          role: 'assistant' as const,
+          content: `✅ **MAIA** est maintenant connectée à la machine **${machineName}**.\n\n🤖 Je suis votre assistante IA spécialisée en maintenance industrielle. J'ai analysé les documents techniques disponibles pour cette machine.\n\n💡 **Comment puis-je vous aider ?**\n- 🔧 Diagnostic de pannes\n- 🛠️ Procédures de maintenance\n- 📦 Identification de pièces détachées\n- ⚠️ Consignes de sécurité\n\nN'hésitez pas à me décrire le problème ou à me poser vos questions !`,
+          created_at: new Date().toISOString()
+        };
+        
+        setChatMessages([welcomeMessage]);
+        try { 
+          localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify([welcomeMessage])); 
+        } catch (_) {}
         setIsLoading(false);
-      }, 2000);
+      }, 1500);
     } else {
-      // Remove loading message if we have existing chat
-      setChatMessages(prev => prev.filter(msg => !msg.content.includes('🔄')));
       setIsLoading(false);
     }
-  };
+  }, [loadChatHistory]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return {
     chatMessages,
     isLoading,
+    isTyping,
     sendMessage,
     clearChat,
     deleteChatForMachine,
-    resetChatForMachine,
     initializeChat,
     loadChatHistory,
+    messagesEndRef,
+    scrollToBottom
   };
 };
