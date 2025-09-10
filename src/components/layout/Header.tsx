@@ -34,7 +34,7 @@ export const Header = ({ user, onLogout, onNavigate }: HeaderProps) => {
               <Building2 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">IndustrialCare</h1>
+              <h1 className="text-xl font-bold text-foreground">Mainteo</h1>
               <p className="text-sm text-muted-foreground">Gestion & Maintenance</p>
             </div>
           </div>

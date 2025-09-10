@@ -145,7 +145,7 @@ export const LoginForm = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-xl shadow-industrial mb-4">
             <Building2 className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">IndustrialCare</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Mainteo</h1>
           <p className="text-blue-100">Gestion et maintenance industrielle avec IA</p>
         </div>
 

@@ -219,7 +219,7 @@ serve(async (req) => {
     console.log('Selected manual content length:', relevantManualContent.length);
     console.log('Original manual length:', manualContent ? manualContent.length : 0);
 
-    // Create AI prompt with the detailed IndustrialCare system prompt
+    // Create AI prompt with the detailed Mainteo system prompt
     const systemPrompt = `
 TU ES MAMAN (Machine Assistance Intelligence Assistant) - Un expert technicien de maintenance industrielle spécialisé sur cette machine.
 

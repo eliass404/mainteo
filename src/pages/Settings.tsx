@@ -37,7 +37,7 @@ export const Settings = ({ onNavigate }: SettingsProps) => {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button className="flex items-center gap-2">
               <Mail className="w-4 h-4" />
-              support@industrialcare.com
+              support@mainteo.com
             </Button>
             <Button variant="outline" className="flex items-center gap-2">
               <Phone className="w-4 h-4" />
