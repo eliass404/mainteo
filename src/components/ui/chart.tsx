@@ -50,13 +50,27 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "flex aspect-video justify-center text-sm bg-gradient-subtle border border-border rounded-xl p-4 shadow-elegant animate-fade-in",
+          "[&_.recharts-cartesian-axis-tick_text]:fill-foreground/70 [&_.recharts-cartesian-axis-tick_text]:text-xs [&_.recharts-cartesian-axis-tick_text]:font-medium",
+          "[&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/30 [&_.recharts-cartesian-grid_line]:opacity-50",
+          "[&_.recharts-curve.recharts-tooltip-cursor]:stroke-primary/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-width-2",
+          "[&_.recharts-dot[stroke='#fff']]:stroke-background [&_.recharts-dot]:drop-shadow-sm",
+          "[&_.recharts-layer]:outline-none [&_.recharts-layer]:transition-all [&_.recharts-layer]:duration-300",
+          "[&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border/30",
+          "[&_.recharts-radial-bar-background-sector]:fill-muted/50",
+          "[&_.recharts-rectangle.recharts-tooltip-cursor]:fill-primary/10 [&_.recharts-rectangle.recharts-tooltip-cursor]:stroke-primary/30",
+          "[&_.recharts-reference-line_[stroke='#ccc']]:stroke-border/40",
+          "[&_.recharts-sector[stroke='#fff']]:stroke-background [&_.recharts-sector]:drop-shadow-sm",
+          "[&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "[&_.recharts-bar]:transition-all [&_.recharts-bar]:duration-300 [&_.recharts-bar:hover]:brightness-110",
+          "[&_.recharts-line]:filter [&_.recharts-line]:drop-shadow-sm [&_.recharts-line-curve]:stroke-width-3",
+          "[&_.recharts-area]:filter [&_.recharts-area]:drop-shadow-sm",
           className
         )}
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        <RechartsPrimitive.ResponsiveContainer width="100%" height="100%">
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>
@@ -177,7 +191,8 @@ const ChartTooltipContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
+          "grid min-w-[12rem] items-start gap-2 rounded-xl border border-border/50 bg-background/95 backdrop-blur-sm px-4 py-3 text-sm shadow-glow animate-scale-in",
+          "before:absolute before:inset-0 before:bg-gradient-subtle before:rounded-xl before:-z-10",
           className
         )}
       >
