@@ -38,7 +38,6 @@ import { useOnlineTechnicians } from "@/hooks/useOnlineTechnicians";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DashboardAnalytics } from "@/components/charts/DashboardAnalytics";
 
 interface AdminDashboardProps {
   userProfile?: {
@@ -272,9 +271,9 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Enhanced Analytics Dashboard */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="glass-card border-tech hover-glow">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -282,21 +281,13 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                 <p className="text-3xl font-bold text-foreground">
                   {loadingStats ? "..." : stats.totalMachines}
                 </p>
-                <div className="w-full bg-muted/30 rounded-full h-2 mt-2">
-                  <div 
-                    className="bg-gradient-primary h-2 rounded-full transition-all duration-1000" 
-                    style={{ width: `${(stats.totalMachines / 20) * 100}%` }}
-                  ></div>
-                </div>
               </div>
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Cog className="w-8 h-8 text-primary" />
-              </div>
+              <Cog className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card border-tech hover-glow">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -304,39 +295,28 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                 <p className="text-3xl font-bold text-foreground">
                   {loadingStats ? "..." : stats.totalTechnicians}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                  <span className="text-xs text-success">{onlineCount} en ligne</span>
-                </div>
               </div>
-              <div className="p-3 bg-accent/10 rounded-full">
-                <Users className="w-8 h-8 text-accent" />
-              </div>
+              <Users className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card border-tech hover-glow">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Interventions en cours</p>
                 <p className="text-3xl font-bold text-foreground">
-                  {stats.activeInterventions}
+                  {onlineCount}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Clock className="w-3 h-3 text-warning" />
-                  <span className="text-xs text-muted-foreground">{onlineCount} techniciens actifs</span>
-                </div>
+                <p className="text-xs text-muted-foreground">techniciens utilisant le chatbot</p>
               </div>
-              <div className="p-3 bg-warning/10 rounded-full">
-                <Clock className="w-8 h-8 text-warning" />
-              </div>
+              <Clock className="w-8 h-8 text-warning" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card border-tech hover-glow">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -344,31 +324,13 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                 <p className="text-3xl font-bold text-foreground">
                   {loadingStats ? "..." : stats.alerts}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  {stats.alerts > 0 && (
-                    <>
-                      <div className="w-2 h-2 bg-destructive rounded-full animate-pulse"></div>
-                      <span className="text-xs text-destructive">Nécessite attention</span>
-                    </>
-                  )}
-                  {stats.alerts === 0 && (
-                    <>
-                      <CheckCircle className="w-3 h-3 text-success" />
-                      <span className="text-xs text-success">Tout va bien</span>
-                    </>
-                  )}
-                </div>
               </div>
-              <div className="p-3 bg-destructive/10 rounded-full">
-                <AlertTriangle className="w-8 h-8 text-destructive" />
-              </div>
+              <AlertTriangle className="w-8 h-8 text-destructive" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Analytics Dashboard */}
-      <DashboardAnalytics machineData={machines} />
 
       {/* Machines Management */}
       <Card>

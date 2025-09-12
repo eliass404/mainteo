@@ -234,37 +234,25 @@ export const TechnicianDashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Enhanced Welcome Section */}
-      <div className="glass-card bg-gradient-primary rounded-xl p-8 text-white border-tech">
+      {/* Welcome Section */}
+      <div className="bg-gradient-primary rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold mb-3 text-gradient">Espace Technicien</h2>
-            <p className="text-blue-100 text-lg">
+            <h2 className="text-2xl font-bold mb-2">Espace Technicien</h2>
+            <p className="text-blue-100">
               Bonjour {profile?.username}! Sélectionnez une machine pour commencer l'assistance IA
             </p>
-            <div className="flex items-center gap-4 mt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
-                <span className="text-sm text-blue-100">MAIA Assistant prêt</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-success" />
-                <span className="text-sm text-blue-100">{userMachines.length} machines disponibles</span>
-              </div>
-            </div>
           </div>
-          <div className="p-4 bg-white/10 rounded-full backdrop-blur-sm">
-            <Bot className="w-16 h-16 text-white" />
-          </div>
+          <Bot className="w-12 h-12 text-white/80" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Enhanced Machine Selection */}
-        <Card className="lg:col-span-1 glass-card border-tech">
-          <CardHeader className="bg-gradient-subtle">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Cog className="w-5 h-5 text-primary" />
+        {/* Machine Selection */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cog className="w-5 h-5" />
               Mes Machines Assignées
             </CardTitle>
           </CardHeader>
@@ -358,12 +346,12 @@ export const TechnicianDashboard = () => {
         {/* Main Content */}
         <div className="lg:col-span-2">
           {selectedMachine ? (
-            <Card className="glass-card border-tech">
-              <CardHeader className="bg-gradient-subtle">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Wrench className="w-5 h-5 text-primary" />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5" />
                   {selectedMachineData?.name}
-                  <Badge variant="outline" className="ml-auto cyber-glow">MAIA Ready</Badge>
+                  <Badge variant="outline" className="ml-auto">MAIA Ready</Badge>
                 </CardTitle>
                 <p className="text-muted-foreground">{selectedMachineData?.description}</p>
               </CardHeader>
