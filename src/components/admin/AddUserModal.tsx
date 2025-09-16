@@ -11,14 +11,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { validateUsername, validateEmail, validatePassword, sanitizeInput } from "@/lib/validation";
 
-const departments = [
-  "Production",
-  "Maintenance", 
-  "Qualité",
-  "Logistique",
-  "R&D"
-];
-
 interface AddUserModalProps {
   onUserCreated?: () => void;
 }
@@ -32,7 +24,6 @@ export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
     email: "",
     phone: "",
     role: "",
-    department: "",
     password: ""
   });
 
@@ -88,7 +79,6 @@ export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
           username: sanitizedUsername,
           role: formData.role,
           phone: sanitizedPhone,
-          department: formData.department,
           created_by_admin_id: profile?.user_id, // Associer le technicien à l'admin connecté
         }
       });
@@ -107,7 +97,7 @@ export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
 
       toast.success(`Utilisateur ${formData.role} créé avec succès`);
       setOpen(false);
-      setFormData({ username: '', email: '', phone: '', role: '', department: '', password: '' });
+      setFormData({ username: '', email: '', phone: '', role: '', password: '' });
       
       // Actualiser la liste des utilisateurs si une fonction onUserCreated existe
       if (onUserCreated) {
@@ -179,19 +169,6 @@ export const AddUserModal = ({ onUserCreated }: AddUserModalProps = {}) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="department">Département</Label>
-            <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({...prev, department: value}))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner le département" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-3">
             <Label>Mot de passe</Label>
