@@ -48,8 +48,21 @@ export const useAIChat = () => {
         (payload) => {
           const newMessage = payload.new as ChatMessage;
           setChatMessages(prev => {
-            const exists = prev.some(msg => msg.id === newMessage.id);
+            // Prevent duplicates by checking both id and content
+            const exists = prev.some(msg => 
+              msg.id === newMessage.id || 
+              (msg.content === newMessage.content && 
+               msg.role === newMessage.role && 
+               Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 5000)
+            );
             if (exists) return prev;
+            
+            // Only add messages that are newer than the last message we have
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && new Date(newMessage.created_at) <= new Date(lastMessage.created_at)) {
+              return prev;
+            }
+            
             return [...prev, newMessage];
           });
         }
@@ -75,14 +88,25 @@ export const useAIChat = () => {
       }
 
       const msgs = (data as ChatMessage[]) || [];
-      setChatMessages(msgs);
+      
+      // Remove duplicates based on content and timing for robustness
+      const uniqueMessages = msgs.filter((msg, index, arr) => {
+        return !arr.slice(0, index).some(prevMsg => 
+          prevMsg.id === msg.id || 
+          (prevMsg.content === msg.content && 
+           prevMsg.role === msg.role && 
+           Math.abs(new Date(prevMsg.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000)
+        );
+      });
+      
+      setChatMessages(uniqueMessages);
       
       // Cache in localStorage with debouncing
       try { 
-        localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(msgs)); 
+        localStorage.setItem(`aiChat.messages.${machineId}`, JSON.stringify(uniqueMessages)); 
       } catch (_) {}
       
-      return msgs;
+      return uniqueMessages;
     } catch (error) {
       console.error('Error loading chat history:', error);
       return [];
@@ -321,11 +345,22 @@ export const useAIChat = () => {
       const cached = localStorage.getItem(`aiChat.messages.${machineId}`);
       if (cached) {
         const cachedMessages = JSON.parse(cached);
-        setChatMessages(cachedMessages);
+        // Remove duplicates from cached messages too
+        const uniqueCachedMessages = cachedMessages.filter((msg, index, arr) => {
+          return !arr.slice(0, index).some(prevMsg => 
+            prevMsg.id === msg.id || 
+            (prevMsg.content === msg.content && 
+             prevMsg.role === msg.role && 
+             Math.abs(new Date(prevMsg.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000)
+          );
+        });
+        setChatMessages(uniqueCachedMessages);
         setIsLoading(false);
         
-        // Refresh from database in background
-        loadChatHistory(machineId);
+        // Refresh from database in background but merge intelligently
+        setTimeout(() => {
+          loadChatHistory(machineId);
+        }, 100);
         return;
       }
     } catch (_) {}
