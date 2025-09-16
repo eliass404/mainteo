@@ -74,8 +74,8 @@ serve(async (req) => {
       });
     }
 
-    // Only allow admin to delete their own technicians
-    if (target.role !== 'technicien' || target.created_by_admin_id !== caller.user.id) {
+    // Allow admin to delete technicians they created OR technicians with no creator (self-registered)
+    if (target.role !== 'technicien' || (target.created_by_admin_id !== null && target.created_by_admin_id !== caller.user.id)) {
       return new Response(JSON.stringify({ error: "Suppression non autorisée" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
