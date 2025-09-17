@@ -223,6 +223,42 @@ export type Database = {
         }
         Relationships: []
       }
+      technician_analytics: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_quality: string | null
+          machine_id: string
+          questions_count: number
+          session_end: string | null
+          session_start: string
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_quality?: string | null
+          machine_id: string
+          questions_count?: number
+          session_end?: string | null
+          session_start?: string
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_quality?: string | null
+          machine_id?: string
+          questions_count?: number
+          session_end?: string | null
+          session_start?: string
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

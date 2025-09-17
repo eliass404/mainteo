@@ -2,6 +2,39 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Fonction pour analyser la qualité de l'interaction
+function analyzeInteractionQuality(messages: any[]): string {
+  const userMessages = messages.filter(msg => msg.role === 'user');
+  const questionCount = userMessages.length;
+  
+  if (questionCount === 0) return 'mauvais';
+  
+  let qualityScore = 0;
+  
+  for (const message of userMessages) {
+    const content = message.content.toLowerCase();
+    const wordCount = content.split(' ').length;
+    
+    // Questions bien formulées (mots-clés techniques, descriptions précises)
+    const technicalKeywords = ['panne', 'défaut', 'erreur', 'vibration', 'bruit', 'fuite', 'température', 'pression', 'voyant', 'alarme', 'machine', 'maintenance'];
+    const hasTechnicalContent = technicalKeywords.some(keyword => content.includes(keyword));
+    
+    if (hasTechnicalContent && wordCount > 5) {
+      qualityScore += 3; // Bonne question
+    } else if (wordCount > 3) {
+      qualityScore += 2; // Question passable
+    } else {
+      qualityScore += 1; // Question vague
+    }
+  }
+  
+  const averageScore = qualityScore / questionCount;
+  
+  if (averageScore >= 2.5) return 'bien';
+  if (averageScore >= 1.5) return 'passable';
+  return 'mauvais';
+}
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -339,6 +372,59 @@ Aller directement à :
         role: 'assistant',
         content: assistantMessage
       });
+
+    // Background task: Update analytics data
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        // Get all messages for this session to analyze quality
+        const { data: allMessages } = await supabaseClient
+          .from('chat_messages')
+          .select('role, content')
+          .eq('machine_id', machineId)
+          .eq('technician_id', user.id)
+          .order('created_at', { ascending: true });
+
+        if (allMessages && allMessages.length > 0) {
+          const interactionQuality = analyzeInteractionQuality(allMessages);
+          const userMessagesCount = allMessages.filter(msg => msg.role === 'user').length;
+
+          // Check if analytics session already exists
+          const { data: existingSession } = await supabaseClient
+            .from('technician_analytics')
+            .select('*')
+            .eq('technician_id', user.id)
+            .eq('machine_id', machineId)
+            .is('session_end', null)
+            .order('session_start', { ascending: false })
+            .limit(1);
+
+          if (existingSession && existingSession.length > 0) {
+            // Update existing session
+            await supabaseClient
+              .from('technician_analytics')
+              .update({
+                questions_count: userMessagesCount,
+                interaction_quality: interactionQuality,
+                session_end: new Date().toISOString()
+              })
+              .eq('id', existingSession[0].id);
+          } else {
+            // Create new analytics session
+            await supabaseClient
+              .from('technician_analytics')
+              .insert({
+                technician_id: user.id,
+                machine_id: machineId,
+                questions_count: userMessagesCount,
+                interaction_quality: interactionQuality,
+                session_end: new Date().toISOString()
+              });
+          }
+        }
+      } catch (error) {
+        console.error('Error updating analytics:', error);
+      }
+    })());
 
     return new Response(JSON.stringify({ 
       message: assistantMessage,

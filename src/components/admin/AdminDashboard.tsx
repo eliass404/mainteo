@@ -38,6 +38,8 @@ import { useOnlineTechnicians } from "@/hooks/useOnlineTechnicians";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
 
 interface AdminDashboardProps {
   userProfile?: {
@@ -271,7 +273,14 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Stats Cards */}
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics MAMAN</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="dashboard" className="space-y-6">
+          {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
@@ -583,7 +592,12 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
         currentUserRole={userProfile?.role || 'admin'}
         currentUserId={userProfile?.user_id || ''}
       />
+        </TabsContent>
 
+        <TabsContent value="analytics">
+          <AnalyticsDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
