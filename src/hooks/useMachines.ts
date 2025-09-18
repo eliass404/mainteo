@@ -14,6 +14,10 @@ interface Machine {
   next_maintenance?: string;
   manual_url?: string;
   notice_url?: string;
+  family_id?: string;
+  machine_families?: {
+    name: string;
+  };
 }
 
 export const useMachines = () => {
@@ -25,7 +29,12 @@ export const useMachines = () => {
     try {
       const { data, error } = await supabase
         .from('machines')
-        .select('*')
+        .select(`
+          *,
+          machine_families (
+            name
+          )
+        `)
         .order('name');
 
       if (error) {
@@ -88,7 +97,12 @@ export const useMachines = () => {
     try {
       const { data, error } = await supabase
         .from('machines')
-        .select('*')
+        .select(`
+          *,
+          machine_families (
+            name
+          )
+        `)
         .order('name');
 
       if (error) {

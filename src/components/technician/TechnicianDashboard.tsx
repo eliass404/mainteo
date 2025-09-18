@@ -27,6 +27,7 @@ import { useMachines } from "@/hooks/useMachines";
 import { useAIChat } from "@/hooks/useAIChat";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { MaintenanceNotifications } from "./MaintenanceNotifications";
 
 export const TechnicianDashboard = () => {
   const { profile } = useAuth();
@@ -234,6 +235,8 @@ export const TechnicianDashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <MaintenanceNotifications />
+      
       {/* Welcome Section */}
       <div className="bg-gradient-primary rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">

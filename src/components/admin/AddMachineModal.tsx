@@ -8,6 +8,8 @@ import { Plus, Upload, FileText, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useMachineFamilies } from "@/hooks/useMachineFamilies";
+import { AddFamilyModal } from "./AddFamilyModal";
 
 export const AddMachineModal = () => {
   const [open, setOpen] = useState(false);
@@ -17,11 +19,17 @@ export const AddMachineModal = () => {
     customType: "",
     location: "",
     serialNumber: "",
-    manualContent: ""
+    manualContent: "",
+    familyId: "",
+    lastMaintenance: "",
+    nextMaintenance: ""
   });
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
+  
+  const { families, addFamily } = useMachineFamilies();
 
   const slugify = (str: string) =>
     str
@@ -153,14 +161,27 @@ export const AddMachineModal = () => {
         location: formData.location,
         serial_number: formData.serialNumber,
         manual_content: formData.manualContent,
-        manual_url: manualUrl
+        manual_url: manualUrl,
+        family_id: formData.familyId || null,
+        last_maintenance: formData.lastMaintenance || null,
+        next_maintenance: formData.nextMaintenance || null
       });
 
       if (insertError) throw insertError;
 
       toast({ title: 'Machine ajoutée', description: 'La machine a été créée avec succès.' });
       setOpen(false);
-      setFormData({ name: '', type: '', customType: '', location: '', serialNumber: '', manualContent: '' });
+      setFormData({ 
+        name: '', 
+        type: '', 
+        customType: '', 
+        location: '', 
+        serialNumber: '', 
+        manualContent: '',
+        familyId: '',
+        lastMaintenance: '',
+        nextMaintenance: ''
+      });
       setPdfFile(null);
       
       // Refresh the page to update the machines list
@@ -228,9 +249,56 @@ export const AddMachineModal = () => {
                  onChange={(e) => setFormData(prev => ({...prev, customType: e.target.value}))}
                />
              )}
-          </div>
+           </div>
 
-          <div className="space-y-2">
+           <div className="space-y-2">
+             <Label htmlFor="family">Famille de machines</Label>
+             <Select value={formData.familyId} onValueChange={(value) => setFormData(prev => ({...prev, familyId: value}))}>
+               <SelectTrigger>
+                 <SelectValue placeholder="Sélectionner une famille" />
+               </SelectTrigger>
+               <SelectContent>
+                 {families.map((family) => (
+                   <SelectItem key={family.id} value={family.id}>{family.name}</SelectItem>
+                 ))}
+                 <SelectItem value="__add_new__">+ Ajouter une nouvelle famille</SelectItem>
+               </SelectContent>
+             </Select>
+             {formData.familyId === "__add_new__" && (
+               <Button
+                 type="button"
+                 variant="outline"
+                 onClick={() => setShowAddFamilyModal(true)}
+                 className="w-full"
+               >
+                 <Plus className="w-4 h-4 mr-2" />
+                 Créer une nouvelle famille
+               </Button>
+             )}
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-2">
+               <Label htmlFor="lastMaintenance">Dernière maintenance</Label>
+               <Input
+                 id="lastMaintenance"
+                 type="date"
+                 value={formData.lastMaintenance}
+                 onChange={(e) => setFormData(prev => ({...prev, lastMaintenance: e.target.value}))}
+               />
+             </div>
+             <div className="space-y-2">
+               <Label htmlFor="nextMaintenance">Prochaine maintenance</Label>
+               <Input
+                 id="nextMaintenance"
+                 type="date"
+                 value={formData.nextMaintenance}
+                 onChange={(e) => setFormData(prev => ({...prev, nextMaintenance: e.target.value}))}
+               />
+             </div>
+           </div>
+
+           <div className="space-y-2">
             <Label htmlFor="location">Emplacement</Label>
             <Input
               id="location"
@@ -328,6 +396,18 @@ export const AddMachineModal = () => {
           </div>
         </form>
       </DialogContent>
+      
+      <AddFamilyModal
+        isOpen={showAddFamilyModal}
+        onClose={() => setShowAddFamilyModal(false)}
+        onSuccess={async (familyData) => {
+          const result = await addFamily(familyData);
+          if (result.success) {
+            setFormData(prev => ({...prev, familyId: result.data.id}));
+            setShowAddFamilyModal(false);
+          }
+        }}
+      />
     </Dialog>
   );
 };

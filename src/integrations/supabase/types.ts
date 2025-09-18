@@ -110,10 +110,35 @@ export type Database = {
           },
         ]
       }
+      machine_families: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       machines: {
         Row: {
           created_at: string
           description: string | null
+          family_id: string | null
           id: string
           last_maintenance: string | null
           location: string
@@ -130,6 +155,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          family_id?: string | null
           id: string
           last_maintenance?: string | null
           location: string
@@ -146,6 +172,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          family_id?: string | null
           id?: string
           last_maintenance?: string | null
           location?: string
@@ -159,7 +186,53 @@ export type Database = {
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "machines_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "machine_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          machine_id: string
+          message: string
+          notification_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          machine_id: string
+          message: string
+          notification_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          machine_id?: string
+          message?: string
+          notification_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_notifications_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
