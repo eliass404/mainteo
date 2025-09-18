@@ -27,10 +27,10 @@ import { AddMachineModal } from "./AddMachineModal";
 import { AddUserModal } from "./AddUserModal";
 import { EditMachineModal } from "./EditMachineModal";
 import { EditUserModal } from "./EditUserModal";
+import { AddFamilyModal } from "./AddFamilyModal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
-
+import { useMachineFamilies } from "@/hooks/useMachineFamilies";
 
 import { useState, useEffect } from "react";
 import { useMachines } from "@/hooks/useMachines";
@@ -50,6 +50,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
   const { machines, loading: machinesLoading, fetchMachines } = useMachines();
+  const { families, loading: familiesLoading, addFamily } = useMachineFamilies();
   const { onlineCount } = useOnlineTechnicians();
   const { toast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
@@ -65,6 +66,7 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -274,8 +276,9 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
   return (
     <div className="p-6 space-y-6">
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+          <TabsTrigger value="families">Familles de machines</TabsTrigger>
           <TabsTrigger value="analytics">Analytics MAMAN</TabsTrigger>
         </TabsList>
         
@@ -379,6 +382,7 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                 <TableHead>ID</TableHead>
                 <TableHead>Machine</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Famille</TableHead>
                 <TableHead>Emplacement</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Prochaine Maintenance</TableHead>
@@ -388,7 +392,7 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
             <TableBody>
               {machinesLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                       Chargement des machines...
@@ -397,7 +401,7 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                 </TableRow>
               ) : machines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Aucune machine trouvée. Ajoutez votre première machine.
                   </TableCell>
                 </TableRow>
@@ -415,6 +419,9 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
                     <TableCell className="font-medium">{machine.id}</TableCell>
                     <TableCell>{machine.name}</TableCell>
                     <TableCell>{machine.type}</TableCell>
+                    <TableCell>
+                      {machine.machine_families?.name || 'Aucune famille'}
+                    </TableCell>
                     <TableCell>{machine.location}</TableCell>
                     <TableCell>{getStatusBadge(machine.status)}</TableCell>
                     <TableCell>{machine.next_maintenance || 'Non programmée'}</TableCell>
@@ -592,6 +599,85 @@ export const AdminDashboard = ({ userProfile }: AdminDashboardProps) => {
         currentUserRole={userProfile?.role || 'admin'}
         currentUserId={userProfile?.user_id || ''}
       />
+
+      <AddFamilyModal
+        isOpen={showAddFamilyModal}
+        onClose={() => setShowAddFamilyModal(false)}
+        onSuccess={async (familyData) => {
+          await addFamily(familyData);
+          setShowAddFamilyModal(false);
+        }}
+      />
+        </TabsContent>
+
+        <TabsContent value="families" className="space-y-6">
+          {/* Families Management */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Gestion des Familles de Machines</CardTitle>
+                <Button onClick={() => setShowAddFamilyModal(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle Famille
+                </Button>
+              </div>
+              <p className="text-muted-foreground">
+                Organisez vos machines par familles pour faciliter la navigation
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom de la famille</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Nombre de machines</TableHead>
+                    <TableHead>Créé le</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {familiesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          Chargement des familles...
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : families.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Aucune famille créée. Créez votre première famille de machines.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    families.map((family) => {
+                      const machineCount = machines.filter(m => m.family_id === family.id).length;
+                      return (
+                        <TableRow key={family.id}>
+                          <TableCell className="font-medium">{family.name}</TableCell>
+                          <TableCell>{family.description || 'Aucune description'}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{machineCount} machine(s)</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(family.created_at).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" disabled>
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="analytics">
