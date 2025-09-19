@@ -1,22 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Cog, 
-  MessageCircle, 
-  FileText, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  MessageCircle,
   Send,
   Bot,
-  User as UserIcon,
-  Calendar,
-  MapPin,
+  User,
   Wrench,
   FileCheck,
   Download
@@ -28,6 +28,7 @@ import { useAIChat } from "@/hooks/useAIChat";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MaintenanceNotifications } from "./MaintenanceNotifications";
+import { MachineSelector } from "./MachineSelector";
 
 export const TechnicianDashboard = () => {
   const { profile } = useAuth();
@@ -35,10 +36,8 @@ export const TechnicianDashboard = () => {
   const { chatMessages, isLoading, sendMessage, initializeChat } = useAIChat();
   const { toast } = useToast();
   
-  const [userMachines, setUserMachines] = useState<any[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState("");
-  const [loadingMachines, setLoadingMachines] = useState(true);
   const [interventionReport, setInterventionReport] = useState({
     description: "",
     actions: "",
@@ -46,12 +45,7 @@ export const TechnicianDashboard = () => {
     time_spent: "",
     status: "en-cours"
   });
-  const [activeTab, setActiveTab] = useState('chat');
-  useEffect(() => {
-    if (profile) {
-      loadUserMachines();
-    }
-  }, [profile]);
+  const [activeTab, setActiveTab] = useState('machines');
 
   // Restore persisted UI state
   useEffect(() => {
@@ -76,39 +70,19 @@ export const TechnicianDashboard = () => {
     } catch (_) {}
   }, [selectedMachine]);
 
-  const loadUserMachines = async () => {
-    if (!profile) return;
-    
-    setLoadingMachines(true);
-    try {
-      const machines = await getUserMachines();
-      setUserMachines(machines);
-    } catch (error) {
-      console.error('Error loading user machines:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger vos machines assignées",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingMachines(false);
-    }
-  };
-
-  // Initialize chat when we have both selected machine and machine data
-  useEffect(() => {
-    if (selectedMachine && userMachines.length > 0) {
-      const machine = userMachines.find(m => m.id === selectedMachine);
-      if (machine) {
-        initializeChat(selectedMachine, machine.name);
-      }
-    }
-  }, [selectedMachine, userMachines]);
   const handleMachineSelect = async (machineId: string) => {
     setSelectedMachine(machineId);
-    const machine = userMachines.find(m => m.id === machineId);
-    if (machine) {
-      await initializeChat(machineId, machine.name);
+    setActiveTab('chat');
+    
+    // Initialize chat for the selected machine
+    try {
+      const machines = await getUserMachines();
+      const machine = machines.find(m => m.id === machineId);
+      if (machine) {
+        await initializeChat(machineId, machine.name);
+      }
+    } catch (error) {
+      console.error('Error initializing chat:', error);
     }
   };
 
@@ -137,68 +111,61 @@ export const TechnicianDashboard = () => {
           status: reportStatus
         });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
-        title: isFinalized ? "Intervention finalisée" : "Brouillon sauvegardé",
-        description: isFinalized 
-          ? "L'intervention a été finalisée avec succès." 
-          : "Le brouillon a été sauvegardé avec succès.",
+        title: isFinalized ? "Rapport finalisé" : "Brouillon sauvegardé",
+        description: isFinalized ? 
+          "Le rapport d'intervention a été finalisé avec succès." : 
+          "Le brouillon a été sauvegardé.",
       });
 
-      // Si l'intervention est finalisée, reset le chat de la machine
-      if (isFinalized && selectedMachine) {
-        try { localStorage.setItem(`aiChat.reset.${selectedMachine}`, 'true'); } catch (_) {}
-        // Réinitialiser le chat pour cette machine (session neuve)
-        const machine = userMachines.find(m => m.id === selectedMachine);
-        if (machine) {
-          await initializeChat(selectedMachine, machine.name, { reset: true });
-        }
+      // Reset form if finalized
+      if (isFinalized) {
+        setInterventionReport({
+          description: "",
+          actions: "",
+          parts_used: "",
+          time_spent: "",
+          status: "en-cours"
+        });
       }
-
-      // Reset form
-      setInterventionReport({
-        description: "",
-        actions: "",
-        parts_used: "",
-        time_spent: "",
-        status: "en-cours"
-      });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving report:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder le rapport",
+        description: error.message || "Impossible de sauvegarder le rapport",
         variant: "destructive",
       });
     }
   };
 
-  const downloadManual = async (machineId: string, machineName: string) => {
-    const machine = userMachines.find(m => m.id === machineId);
-    if (!machine?.manual_url) {
-      toast({
-        title: "Manuel non disponible",
-        description: "Aucun manuel PDF n'est disponible pour cette machine",
-        variant: "destructive"
-      });
-      return;
-    }
+  const downloadMachineManual = async () => {
+    if (!selectedMachine) return;
 
     try {
+      const machines = await getUserMachines();
+      const machine = machines.find(m => m.id === selectedMachine);
+      
+      if (!machine?.manual_url) {
+        toast({
+          title: "Aucun manuel",
+          description: "Cette machine n'a pas de manuel PDF disponible",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase.storage
         .from('manuals')
         .download(machine.manual_url);
 
       if (error) throw error;
 
-      // Create download link
       const url = URL.createObjectURL(data);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Manuel_${machineName.replace(/\s+/g, '_')}.pdf`;
+      link.download = `Manuel_${machine.name.replace(/\s+/g, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -213,301 +180,245 @@ export const TechnicianDashboard = () => {
       toast({
         title: "Erreur de téléchargement",
         description: "Impossible de télécharger le manuel",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'operational':
-        return <Badge className="bg-success text-success-foreground">Opérationnel</Badge>;
-      case 'maintenance':
-        return <Badge variant="secondary">Maintenance</Badge>;
-      case 'alert':
-        return <Badge variant="destructive">Alerte</Badge>;
-      default:
-        return <Badge variant="outline">Inconnu</Badge>;
-    }
-  };
+  const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
 
-  const selectedMachineData = userMachines.find(m => m.id === selectedMachine);
+  useEffect(() => {
+    const updateMachineName = async () => {
+      if (!selectedMachine) {
+        setSelectedMachineName(null);
+        return;
+      }
+      try {
+        const machines = await getUserMachines();
+        const machine = machines.find(m => m.id === selectedMachine);
+        setSelectedMachineName(machine?.name || null);
+      } catch {
+        setSelectedMachineName(null);
+      }
+    };
+    updateMachineName();
+  }, [selectedMachine, getUserMachines]);
 
   return (
-    <div className="p-6 space-y-6">
-      <MaintenanceNotifications />
-      
-      {/* Welcome Section */}
-      <div className="bg-gradient-primary rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Espace Technicien</h2>
-            <p className="text-blue-100">
-              Bonjour {profile?.username}! Sélectionnez une machine pour commencer l'assistance IA
-            </p>
-          </div>
-          <Bot className="w-12 h-12 text-white/80" />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Technicien</h1>
+          <p className="text-muted-foreground">
+            Bienvenue, {profile?.username}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Machine Selection */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Cog className="w-5 h-5" />
-              Mes Machines Assignées
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingMachines ? (
-              <div className="text-center py-4">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Chargement...</p>
-              </div>
-            ) : userMachines.length === 0 ? (
-              <div className="text-center py-4">
-                <Cog className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aucune machine assignée</p>
-                <p className="text-xs text-muted-foreground">Contactez votre administrateur</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label>Sélectionner une machine</Label>
-                  <Select value={selectedMachine || ""} onValueChange={handleMachineSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une machine" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userMachines
-                        .filter(machine => machine.id && machine.id.trim() !== '')
-                        .map((machine) => (
-                        <SelectItem key={machine.id} value={machine.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{machine.id} - {machine.name}</span>
-                            <div className="flex gap-1">
-                              {machine.manual_url && (
-                                <span className="text-xs bg-primary/10 text-primary px-1 rounded">Manuel</span>
-                              )}
-                              {machine.notice_url && (
-                                <span className="text-xs bg-accent/10 text-accent-foreground px-1 rounded">Notice</span>
-                              )}
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      <MaintenanceNotifications />
 
-                {selectedMachineData && (
-                  <div className="p-4 rounded-lg border bg-muted/20">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-sm">{selectedMachineData.name}</h3>
-                      {getStatusBadge(selectedMachineData.status)}
-                    </div>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3" />
-                        {selectedMachineData.location}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" />
-                        Prochaine: {selectedMachineData.next_maintenance || 'Non programmée'}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="w-3 h-3" />
-                        <span className="text-xs">
-                          {selectedMachineData.manual_url && selectedMachineData.notice_url 
-                            ? "Manuel + Notice disponibles"
-                            : selectedMachineData.manual_url 
-                              ? "Manuel disponible" 
-                              : selectedMachineData.notice_url
-                                ? "Notice disponible"
-                                : "Aucun document"}
-                        </span>
-                        {selectedMachineData.manual_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => downloadManual(selectedMachineData.id, selectedMachineData.name)}
-                            className="h-6 px-2"
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="machines">
+            <Wrench className="w-4 h-4 mr-2" />
+            Machines
+          </TabsTrigger>
+          <TabsTrigger value="chat" disabled={!selectedMachine}>
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Assistant IA
+          </TabsTrigger>
+          <TabsTrigger value="rapport" disabled={!selectedMachine}>
+            <FileCheck className="w-4 h-4 mr-2" />
+            Rapport d'intervention
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Main Content */}
-        <div className="lg:col-span-2">
+        <TabsContent value="machines" className="space-y-4">
+          <MachineSelector 
+            selectedMachine={selectedMachine}
+            onMachineSelect={handleMachineSelect}
+          />
+        </TabsContent>
+
+        <TabsContent value="chat" className="space-y-4">
           {selectedMachine ? (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5" />
-                  {selectedMachineData?.name}
-                  <Badge variant="outline" className="ml-auto">MAIA Ready</Badge>
-                </CardTitle>
-                <p className="text-muted-foreground">{selectedMachineData?.description}</p>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="w-5 h-5" />
+                    Assistant IA{selectedMachineName ? ` - Machine ${selectedMachineName}` : ''}
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadMachineManual}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Manuel PDF
+                  </Button>
+                </div>
+                <CardDescription>
+                  Posez vos questions sur la machine sélectionnée
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="chat" className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      Assistant IA MAIA
-                    </TabsTrigger>
-                    <TabsTrigger value="rapport" className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Rapport d'intervention
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="chat" forceMount className="space-y-4">
-                    <div className="border rounded-lg h-96 overflow-y-auto p-4 space-y-4 bg-muted/20">
-                      {chatMessages.map((msg, index) => (
-                        <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-2' : ''}`}>
-                            <div className={`flex items-center gap-2 mb-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                              {msg.role === 'user' ? (
-                                <UserIcon className="w-4 h-4" />
-                              ) : (
-                                <Bot className="w-4 h-4 text-primary" />
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {msg.role === 'user' ? 'Vous' : 'MAIA'}
-                              </span>
-                            </div>
-                            <div className={`p-3 rounded-lg whitespace-pre-wrap ${
-                              msg.role === 'user' 
-                                ? 'bg-primary text-primary-foreground ml-auto' 
-                                : 'bg-white border'
-                            }`}>
-                              {msg.content}
-                            </div>
-                          </div>
+              <CardContent className="space-y-4">
+                <div className="h-96 overflow-y-auto border rounded-lg p-4 space-y-3">
+                  {chatMessages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-3 ${
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
+                      }`}
+                    >
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Bot className="w-4 h-4 text-primary" />
                         </div>
-                      ))}
-                      {isLoading && (
-                        <div className="flex gap-3 justify-start">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Bot className="w-4 h-4 text-primary" />
-                            <span className="text-xs text-muted-foreground">MAIA</span>
-                          </div>
-                          <div className="bg-white border p-3 rounded-lg">
-                            <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                          </div>
+                      )}
+                      <div
+                        className={`max-w-[80%] p-3 rounded-lg ${
+                          message.role === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      </div>
+                      {message.role === 'user' && (
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                          <User className="w-4 h-4 text-primary-foreground" />
                         </div>
                       )}
                     </div>
-                    
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Décrivez le problème ou posez une question à MAIA..."
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                        disabled={isLoading}
-                      />
-                      <Button 
-                        onClick={handleSendMessage} 
-                        disabled={isLoading || !inputMessage.trim()}
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="rapport" forceMount className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Description du problème</Label>
-                        <Textarea
-                          id="description"
-                          placeholder="Décrivez le problème rencontré..."
-                          value={interventionReport.description}
-                          onChange={(e) => setInterventionReport({...interventionReport, description: e.target.value})}
-                        />
+                  ))}
+                  {isLoading && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-primary animate-pulse" />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="actions">Actions réalisées</Label>
-                        <Textarea
-                          id="actions"
-                          placeholder="Décrivez les actions effectuées..."
-                          value={interventionReport.actions}
-                          onChange={(e) => setInterventionReport({...interventionReport, actions: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="parts">Pièces utilisées</Label>
-                        <Input
-                          id="parts"
-                          placeholder="Ex: Filtre hydraulique, Joint torique..."
-                          value={interventionReport.parts_used}
-                          onChange={(e) => setInterventionReport({...interventionReport, parts_used: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="time">Temps passé (heures)</Label>
-                        <Input
-                          id="time"
-                          type="number"
-                          step="0.1"
-                          placeholder="2.5"
-                          value={interventionReport.time_spent}
-                          onChange={(e) => setInterventionReport({...interventionReport, time_spent: e.target.value})}
-                        />
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-sm">L'IA est en train de réfléchir...</p>
                       </div>
                     </div>
-                    
-                    <div className="flex gap-4">
-                      <Button 
-                        className="flex-1"
-                        onClick={() => handleSaveReport(true)}
-                        disabled={!interventionReport.description.trim()}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Finaliser l'intervention
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => handleSaveReport(false)}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Sauvegarder le brouillon
-                      </Button>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Tapez votre question..."
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    disabled={isLoading}
+                  />
+                  <Button onClick={handleSendMessage} disabled={isLoading || !inputMessage.trim()}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
             <Card>
-              <CardContent className="flex items-center justify-center h-96">
-                <div className="text-center text-muted-foreground">
-                  <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">MAIA Assistant IA</h3>
-                  <p>Sélectionnez une machine pour commencer l'assistance IA</p>
-                  <p className="text-sm mt-2">MAIA analysera automatiquement les documents techniques disponibles</p>
-                </div>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                Sélectionnez une machine pour commencer le chat
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="rapport" className="space-y-4">
+          {selectedMachine ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileCheck className="w-5 h-5" />
+                  Rapport d'intervention
+                </CardTitle>
+                <CardDescription>
+                  Documentez votre intervention sur la machine
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description du problème</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Décrivez le problème rencontré..."
+                      value={interventionReport.description}
+                      onChange={(e) => setInterventionReport(prev => ({
+                        ...prev,
+                        description: e.target.value
+                      }))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="actions">Actions effectuées</Label>
+                    <Textarea
+                      id="actions"
+                      placeholder="Décrivez les actions que vous avez effectuées..."
+                      value={interventionReport.actions}
+                      onChange={(e) => setInterventionReport(prev => ({
+                        ...prev,
+                        actions: e.target.value
+                      }))}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="parts_used">Pièces utilisées</Label>
+                      <Input
+                        id="parts_used"
+                        placeholder="Liste des pièces..."
+                        value={interventionReport.parts_used}
+                        onChange={(e) => setInterventionReport(prev => ({
+                          ...prev,
+                          parts_used: e.target.value
+                        }))}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="time_spent">Temps passé (heures)</Label>
+                      <Input
+                        id="time_spent"
+                        type="number"
+                        step="0.5"
+                        placeholder="2.5"
+                        value={interventionReport.time_spent}
+                        onChange={(e) => setInterventionReport(prev => ({
+                          ...prev,
+                          time_spent: e.target.value
+                        }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleSaveReport(false)}
+                  >
+                    Sauvegarder brouillon
+                  </Button>
+                  <Button onClick={() => handleSaveReport(true)}>
+                    Finaliser rapport
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                Sélectionnez une machine pour créer un rapport
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
