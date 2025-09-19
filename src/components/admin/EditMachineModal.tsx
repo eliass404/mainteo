@@ -7,7 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, X, Download } from "lucide-react";
+import { Upload, FileText, X, Download, Calendar } from "lucide-react";
+import { useMachineFamilies } from "@/hooks/useMachineFamilies";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Machine {
   id: string;
@@ -19,6 +24,12 @@ interface Machine {
   serial_number?: string;
   manual_content?: string;
   manual_url?: string;
+  family_id?: string;
+  last_maintenance?: string;
+  next_maintenance?: string;
+  machine_families?: {
+    name: string;
+  };
 }
 
 interface EditMachineModalProps {
@@ -36,13 +47,17 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     status: "operational" as 'operational' | 'maintenance' | 'alert',
     description: "",
     serial_number: "",
-    manual_content: ""
+    manual_content: "",
+    family_id: "",
+    last_maintenance: undefined as Date | undefined,
+    next_maintenance: undefined as Date | undefined
   });
   
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
+  const { families } = useMachineFamilies();
   const { toast } = useToast();
 
   const slugify = (str: string) =>
@@ -63,7 +78,10 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
         status: machine.status,
         description: machine.description || "",
         serial_number: machine.serial_number || "",
-        manual_content: machine.manual_content || ""
+        manual_content: machine.manual_content || "",
+        family_id: machine.family_id || "",
+        last_maintenance: machine.last_maintenance ? new Date(machine.last_maintenance) : undefined,
+        next_maintenance: machine.next_maintenance ? new Date(machine.next_maintenance) : undefined
       });
       setCurrentPdfUrl(machine.manual_url || null);
       setPdfFile(null);
@@ -183,7 +201,10 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
           description: formData.description || null,
           serial_number: formData.serial_number || null,
           manual_content: formData.manual_content || null,
-          manual_url: manualUrl
+          manual_url: manualUrl,
+          family_id: formData.family_id || null,
+          last_maintenance: formData.last_maintenance ? formData.last_maintenance.toISOString().split('T')[0] : null,
+          next_maintenance: formData.next_maintenance ? formData.next_maintenance.toISOString().split('T')[0] : null
         })
         .eq('id', machine.id);
 
@@ -252,6 +273,21 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="family">Famille de machine</Label>
+            <Select value={formData.family_id} onValueChange={(value) => setFormData(prev => ({...prev, family_id: value}))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une famille" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Aucune famille</SelectItem>
+                {families.map((family) => (
+                  <SelectItem key={family.id} value={family.id}>{family.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="location">Emplacement</Label>
             <Input
               id="location"
@@ -284,6 +320,67 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
               onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
               placeholder="Description de la machine"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Dernière maintenance</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.last_maintenance && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formData.last_maintenance ? format(formData.last_maintenance, "dd/MM/yyyy") : "Sélectionner une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formData.last_maintenance}
+                    onSelect={(date) => setFormData(prev => ({...prev, last_maintenance: date}))}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Prochaine maintenance</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.next_maintenance && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formData.next_maintenance ? format(formData.next_maintenance, "dd/MM/yyyy") : "Sélectionner une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formData.next_maintenance}
+                    onSelect={(date) => setFormData(prev => ({...prev, next_maintenance: date}))}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-sm text-muted-foreground">
+                Les techniciens seront notifiés automatiquement quand cette date arrive.
+              </p>
+            </div>
           </div>
 
           {/* Upload de fichier PDF */}
