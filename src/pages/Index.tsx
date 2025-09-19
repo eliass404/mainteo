@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Header } from '@/components/layout/Header';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { AIAssistant } from '@/components/technician/AIAssistant';
+import { TechnicianDashboard } from '@/components/technician/TechnicianDashboard';
 import { InterventionReport } from '@/components/technician/InterventionReport';
 import { Settings } from './Settings';
 import { Profile } from './Profile';
@@ -20,7 +20,7 @@ const Index = () => {
       if (profile.role === 'admin') {
         setCurrentPage('dashboard');
       } else {
-        setCurrentPage('ai-assistant');
+        setCurrentPage('technician-dashboard');
       }
     }
   }, [profile]);
@@ -58,8 +58,8 @@ const Index = () => {
         return <Settings onNavigate={handleNavigate} />;
       case 'profile':
         return <Profile user={profile} onNavigate={handleNavigate} />;
-      case 'ai-assistant':
-        return <AIAssistant />;
+      case 'technician-dashboard':
+        return <TechnicianDashboard />;
       case 'intervention-report':
         return <InterventionReport />;
       case 'dashboard':
@@ -72,8 +72,8 @@ const Index = () => {
             </div>
           );
         } else {
-          // Redirect technicians to AI Assistant
-          return <AIAssistant />;
+          // Redirect technicians to Technician Dashboard
+          return <TechnicianDashboard />;
         }
     }
   };
