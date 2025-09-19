@@ -48,7 +48,7 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
     description: "",
     serial_number: "",
     manual_content: "",
-    family_id: "",
+    family_id: "none",
     last_maintenance: undefined as Date | undefined,
     next_maintenance: undefined as Date | undefined
   });
@@ -79,7 +79,7 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
         description: machine.description || "",
         serial_number: machine.serial_number || "",
         manual_content: machine.manual_content || "",
-        family_id: machine.family_id || "",
+        family_id: machine.family_id || "none",
         last_maintenance: machine.last_maintenance ? new Date(machine.last_maintenance) : undefined,
         next_maintenance: machine.next_maintenance ? new Date(machine.next_maintenance) : undefined
       });
@@ -274,12 +274,12 @@ export const EditMachineModal = ({ machine, open, onOpenChange, onMachineUpdated
 
           <div className="space-y-2">
             <Label htmlFor="family">Famille de machine</Label>
-            <Select value={formData.family_id} onValueChange={(value) => setFormData(prev => ({...prev, family_id: value}))}>
+            <Select value={formData.family_id} onValueChange={(value) => setFormData(prev => ({...prev, family_id: value === "none" ? "" : value}))}>
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner une famille" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucune famille</SelectItem>
+                <SelectItem value="none">Aucune famille</SelectItem>
                 {families.map((family) => (
                   <SelectItem key={family.id} value={family.id}>{family.name}</SelectItem>
                 ))}
