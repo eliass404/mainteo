@@ -102,8 +102,18 @@ export const MachineSelector = ({ selectedMachine, onMachineSelect }: MachineSel
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Sélectionner une machine</h3>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Sélection de machine</h2>
+          <p className="text-muted-foreground mt-1">
+            Choisissez une machine pour commencer votre intervention
+          </p>
+        </div>
+        <Badge variant="outline" className="text-sm">
+          {machines.length} machine{machines.length > 1 ? 's' : ''} disponible{machines.length > 1 ? 's' : ''}
+        </Badge>
+      </div>
       
       {/* Familles de machines */}
       {families.map((family) => {
@@ -113,56 +123,67 @@ export const MachineSelector = ({ selectedMachine, onMachineSelect }: MachineSel
         if (familyMachines.length === 0) return null;
 
         return (
-          <Card key={family.id} className="overflow-hidden">
+          <Card key={family.id} className="overflow-hidden border-0 shadow-md bg-card/50 backdrop-blur-sm hover-glow">
             <Collapsible 
               open={isOpen} 
               onOpenChange={() => toggleFamily(family.id)}
             >
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardHeader className="cursor-pointer hover:bg-primary/5 transition-all duration-200 bg-gradient-to-r from-primary/5 to-transparent">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <CardTitle className="text-base">{family.name}</CardTitle>
-                      <Badge variant="secondary">
-                        {familyMachines.length} machine{familyMachines.length > 1 ? 's' : ''}
-                      </Badge>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center transition-transform duration-200">
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-primary" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-semibold">{family.name}</CardTitle>
+                        {family.description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {family.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                      {familyMachines.length} machine{familyMachines.length > 1 ? 's' : ''}
+                    </Badge>
                   </div>
-                  {family.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {family.description}
-                    </p>
-                  )}
                 </CardHeader>
               </CollapsibleTrigger>
               
               <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <div className="space-y-2">
+                <CardContent className="pt-0 pb-4">
+                  <div className="grid gap-3">
                     {familyMachines.map((machine) => (
                       <Button
                         key={machine.id}
                         variant={selectedMachine === machine.id ? "default" : "outline"}
-                        className="w-full justify-start h-auto p-3"
+                        className={`w-full justify-start h-auto p-4 rounded-xl transition-all duration-200 ${
+                          selectedMachine === machine.id 
+                            ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg" 
+                            : "hover:bg-muted/50 hover:shadow-md border-muted-foreground/20"
+                        }`}
                         onClick={() => onMachineSelect(machine.id)}
                       >
-                        <div className="flex items-center space-x-3 w-full">
-                          {getStatusIcon(machine.status)}
-                          <div className="flex-1 text-left">
-                            <div className="font-medium">{machine.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {machine.location} • {machine.type}
-                              {machine.serial_number && ` • ${machine.serial_number}`}
+                        <div className="flex items-center space-x-4 w-full">
+                          <div className="w-10 h-10 rounded-lg bg-background/20 flex items-center justify-center">
+                            {getStatusIcon(machine.status)}
+                          </div>
+                          <div className="flex-1 text-left space-y-1">
+                            <div className="font-semibold text-base">{machine.name}</div>
+                            <div className="text-sm opacity-80">
+                              📍 {machine.location} • 🔧 {machine.type}
+                              {machine.serial_number && ` • S/N: ${machine.serial_number}`}
                             </div>
                           </div>
                           <Badge 
                             variant={machine.status === 'operational' ? 'default' : 
                                    machine.status === 'maintenance' ? 'secondary' : 'destructive'}
+                            className="shrink-0"
                           >
                             {getStatusLabel(machine.status)}
                           </Badge>
@@ -179,51 +200,60 @@ export const MachineSelector = ({ selectedMachine, onMachineSelect }: MachineSel
 
       {/* Machines sans famille */}
       {machinesWithoutFamily.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden border-0 shadow-md bg-card/50 backdrop-blur-sm hover-glow">
           <Collapsible 
             open={openFamilies.has('no-family')} 
             onOpenChange={() => toggleFamily('no-family')}
           >
             <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardHeader className="cursor-pointer hover:bg-primary/5 transition-all duration-200 bg-gradient-to-r from-muted/50 to-transparent">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {openFamilies.has('no-family') ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                    <CardTitle className="text-base">Machines sans famille</CardTitle>
-                    <Badge variant="secondary">
-                      {machinesWithoutFamily.length} machine{machinesWithoutFamily.length > 1 ? 's' : ''}
-                    </Badge>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-lg bg-muted/20 flex items-center justify-center transition-transform duration-200">
+                      {openFamilies.has('no-family') ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <CardTitle className="text-lg font-semibold">Machines sans famille</CardTitle>
                   </div>
+                  <Badge variant="secondary" className="bg-muted/20">
+                    {machinesWithoutFamily.length} machine{machinesWithoutFamily.length > 1 ? 's' : ''}
+                  </Badge>
                 </div>
               </CardHeader>
             </CollapsibleTrigger>
             
             <CollapsibleContent>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
+              <CardContent className="pt-0 pb-4">
+                <div className="grid gap-3">
                   {machinesWithoutFamily.map((machine) => (
                     <Button
                       key={machine.id}
                       variant={selectedMachine === machine.id ? "default" : "outline"}
-                      className="w-full justify-start h-auto p-3"
+                      className={`w-full justify-start h-auto p-4 rounded-xl transition-all duration-200 ${
+                        selectedMachine === machine.id 
+                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg" 
+                          : "hover:bg-muted/50 hover:shadow-md border-muted-foreground/20"
+                      }`}
                       onClick={() => onMachineSelect(machine.id)}
                     >
-                      <div className="flex items-center space-x-3 w-full">
-                        {getStatusIcon(machine.status)}
-                        <div className="flex-1 text-left">
-                          <div className="font-medium">{machine.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {machine.location} • {machine.type}
-                            {machine.serial_number && ` • ${machine.serial_number}`}
+                      <div className="flex items-center space-x-4 w-full">
+                        <div className="w-10 h-10 rounded-lg bg-background/20 flex items-center justify-center">
+                          {getStatusIcon(machine.status)}
+                        </div>
+                        <div className="flex-1 text-left space-y-1">
+                          <div className="font-semibold text-base">{machine.name}</div>
+                          <div className="text-sm opacity-80">
+                            📍 {machine.location} • 🔧 {machine.type}
+                            {machine.serial_number && ` • S/N: ${machine.serial_number}`}
                           </div>
                         </div>
                         <Badge 
                           variant={machine.status === 'operational' ? 'default' : 
                                  machine.status === 'maintenance' ? 'secondary' : 'destructive'}
+                          className="shrink-0"
                         >
                           {getStatusLabel(machine.status)}
                         </Badge>
@@ -238,9 +268,13 @@ export const MachineSelector = ({ selectedMachine, onMachineSelect }: MachineSel
       )}
 
       {machines.length === 0 && (
-        <Card>
-          <CardContent className="pt-6 text-center text-muted-foreground">
-            Aucune machine disponible
+        <Card className="border-dashed border-2 border-muted-foreground/20">
+          <CardContent className="pt-12 pb-12 text-center">
+            <Wrench className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="text-lg font-semibold mb-2">Aucune machine disponible</h3>
+            <p className="text-muted-foreground">
+              Aucune machine n'est actuellement assignée à votre compte
+            </p>
           </CardContent>
         </Card>
       )}
